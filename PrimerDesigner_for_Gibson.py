@@ -37,17 +37,53 @@ def get_target_sequence(genbank_df, locus_tag):
     # Log the start of fetching sequence data
     logging.info(f"Fetching sequence and details for locus_tag: {locus_tag}")
     start_time = time.time()
-    target_row = genbank_df[genbank_df['locus_tag'] == locus_tag]
-    if target_row.empty:
-        raise ValueError(f"Locus tag {locus_tag} not found in GenBank table.")
-    seq = target_row['rearranged_nt_seq'].iloc[0]
-    direction = target_row['direction'].iloc[0]
-    product = target_row['product'].iloc[0] if 'product' in target_row.columns else "unknown protein"
-    translation = target_row['translation'].iloc[0] if 'translation' in target_row.columns else ""
-    protein_id = target_row['protein_id'].iloc[0] if 'protein_id' in target_row.columns else f"{locus_tag}_protein"
-    # Log the completion of sequence fetching
-    logging.info(f"Sequence fetched in {time.time() - start_time:.2f} seconds")
-    return seq, direction, product, translation, protein_id
+    
+    # Check if locus_tag contains a hyphen (indicating concatenated genes)
+    if '-' in locus_tag:
+        locus_tags = locus_tag.split('-')
+        seqs = []
+        directions = []
+        products = []
+        translations = []
+        protein_ids = []
+        
+        for tag in locus_tags:
+            target_row = genbank_df[genbank_df['locus_tag'] == tag]
+            if target_row.empty:
+                raise ValueError(f"Locus tag {tag} not found in GenBank table.")
+            seq = target_row['rearranged_nt_seq'].iloc[0]
+            direction = target_row['direction'].iloc[0]
+            product = target_row['product'].iloc[0] if 'product' in target_row.columns else "unknown protein"
+            translation = target_row['translation'].iloc[0] if 'translation' in target_row.columns else ""
+            protein_id = target_row['protein_id'].iloc[0] if 'protein_id' in target_row.columns else f"{tag}_protein"
+            
+            seqs.append(seq if direction == '+' else str(Seq.Seq(seq).reverse_complement()))
+            directions.append(direction)
+            products.append(product)
+            translations.append(translation)
+            protein_ids.append(protein_id)
+        
+        # Combine the data for concatenated genes
+        combined_seq = ''.join(seqs)
+        combined_direction = '+'  # Default to '+' (can add logic for complex cases if needed)
+        combined_product = " and ".join(products)
+        combined_translation = ''.join(translations)
+        combined_protein_id = "-".join(protein_ids)
+        
+        logging.info(f"Combined sequence for {locus_tag} fetched in {time.time() - start_time:.2f} seconds")
+        return combined_seq, combined_direction, combined_product, combined_translation, combined_protein_id
+    else:
+        # Handle single locus_tag
+        target_row = genbank_df[genbank_df['locus_tag'] == locus_tag]
+        if target_row.empty:
+            raise ValueError(f"Locus tag {locus_tag} not found in GenBank table.")
+        seq = target_row['rearranged_nt_seq'].iloc[0]
+        direction = target_row['direction'].iloc[0]
+        product = target_row['product'].iloc[0] if 'product' in target_row.columns else "unknown protein"
+        translation = target_row['translation'].iloc[0] if 'translation' in target_row.columns else ""
+        protein_id = target_row['protein_id'].iloc[0] if 'protein_id' in target_row.columns else f"{locus_tag}_protein"
+        logging.info(f"Sequence fetched in {time.time() - start_time:.2f} seconds")
+        return seq, direction, product, translation, protein_id
 
 def read_snapgene_dna(file_path):
     # Log the start of reading the SnapGene file
@@ -521,7 +557,7 @@ def main():
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Design Gibson Assembly primers and update DNA sequence in GenBank format with primer features.")
     parser.add_argument("--genbank_table", required=True, help="Path to GenBank table file (TSV or XLSX format)")
-    parser.add_argument("--locus_tag", required=True, help="Target locus_tag to clone")
+    parser.add_argument("--locus_tag", required=True, help="Target locus_tag(s) to clone, use '-' for concatenation (e.g., QT234_RS00005-00010) or ',' for multiple separate genes (e.g., QT234_RS00005,QT234_RS00010)")
     parser.add_argument("--vector_file", required=True, help="Path to SnapGene DNA vector file (.dna)")
     parser.add_argument("--start", required=True, type=int, help="Start position in vector for insertion (1-based)")
     parser.add_argument("--end", required=True, type=int, help="End position in vector for insertion (1-based)")
@@ -537,53 +573,62 @@ def main():
     # Read GenBank table
     genbank_df = read_genbank_table(args.genbank_table)
     
-    # Fetch target sequence and metadata
-    target_seq, direction, product, translation, protein_id = get_target_sequence(genbank_df, args.locus_tag)
-    if direction == '-':
-        target_seq = str(Seq.Seq(target_seq).reverse_complement())
-        # Log sequence reversal
-        logging.info(f"Target sequence reversed to match 5'->3' direction")
+    # Split locus_tag by comma for multiple separate genes
+    locus_tags = args.locus_tag.split(',')
     
-    # Read SnapGene vector file
-    vector_record = read_snapgene_dna(args.vector_file)
-    vector_seq = vector_record.seq
+    # Process each locus_tag
+    for locus_tag in locus_tags:
+        locus_tag = locus_tag.strip()  # Remove any extra whitespace
+        
+        # Fetch target sequence and metadata
+        target_seq, direction, product, translation, protein_id = get_target_sequence(genbank_df, locus_tag)
+        if direction == '-':
+            target_seq = str(Seq.Seq(target_seq).reverse_complement())
+            # Log sequence reversal
+            logging.info(f"Target sequence reversed to match 5'->3' direction")
+        
+        # Read SnapGene vector file
+        vector_record = read_snapgene_dna(args.vector_file)
+        vector_seq = vector_record.seq
+        
+        # Replace sequence in vector
+        new_seq = replace_sequence(vector_seq, args.start, args.end, target_seq)
+        
+        # Design Gibson Assembly primers
+        primers = design_gibson_primers(vector_seq, target_seq, args.start, tm_target=args.tm)
+        
+        # Print results
+        print(f"\nResults for locus_tag: {locus_tag}")
+        print("Forward Primer (Backbone 5' + Target 5'):", primers["forward_primer"])
+        print("Forward Tm (Target part only):", primers["forward_tm_target"])
+        print("Forward Tm (Full):", primers["forward_tm_full"])
+        print("Reverse Primer (Target 3' rev_comp + Backbone 3' rev_comp):", primers["reverse_primer"])
+        print("Reverse Tm (Target part only):", primers["reverse_tm_target"])
+        print("Reverse Tm (Full):", primers["reverse_tm_full"])
+        
+        # Append to Excel log
+        excel_log.append({
+            "Locus Tag": locus_tag,
+            "Forward Primer (Backbone 5' + Target 5')": primers["forward_primer"],
+            "Forward Tm (Target part only)": primers["forward_tm_target"],
+            "Forward Tm (Full)": primers["forward_tm_full"],
+            "Reverse Primer (Target 3' rev_comp + Backbone 3' rev_comp)": primers["reverse_primer"],
+            "Reverse Tm (Target part only)": primers["reverse_tm_target"],
+            "Reverse Tm (Full)": primers["reverse_tm_full"]
+        })
+        
+        # Convert and modify GenBank file
+        temp_gb_file = convert_dna_to_genbank(args.vector_file, locus_tag)
+        os.makedirs(args.output_dir, exist_ok=True)
+        output_path = os.path.join(args.output_dir, f"{locus_tag}_vector.gbk")
+        modify_genbank(temp_gb_file, new_seq, args.start, args.end, locus_tag, target_seq, product, translation, protein_id, primers, output_path)
+        
+        print(f"Updated GenBank file saved to: {output_path}")
     
-    # Replace sequence in vector
-    new_seq = replace_sequence(vector_seq, args.start, args.end, target_seq)
-    
-    # Design Gibson Assembly primers
-    primers = design_gibson_primers(vector_seq, target_seq, args.start, tm_target=args.tm)
-    
-    # Print results
-    print("Forward Primer (Backbone 5' + Target 5'):", primers["forward_primer"])
-    print("Forward Tm (Target part only):", primers["forward_tm_target"])
-    print("Forward Tm (Full):", primers["forward_tm_full"])
-    print("Reverse Primer (Target 3' rev_comp + Backbone 3' rev_comp):", primers["reverse_primer"])
-    print("Reverse Tm (Target part only):", primers["reverse_tm_target"])
-    print("Reverse Tm (Full):", primers["reverse_tm_full"])
-    
-    # Append to Excel log
-    excel_log.append({
-        "Forward Primer (Backbone 5' + Target 5')": primers["forward_primer"],
-        "Forward Tm (Target part only)": primers["forward_tm_target"],
-        "Forward Tm (Full)": primers["forward_tm_full"],
-        "Reverse Primer (Target 3' rev_comp + Backbone 3' rev_comp)": primers["reverse_primer"],
-        "Reverse Tm (Target part only)": primers["reverse_tm_target"],
-        "Reverse Tm (Full)": primers["reverse_tm_full"]
-    })
-    
-    # Convert and modify GenBank file
-    temp_gb_file = convert_dna_to_genbank(args.vector_file, args.locus_tag)
-    os.makedirs(args.output_dir, exist_ok=True)
-    output_path = os.path.join(args.output_dir, f"{args.locus_tag}_vector.gbk")
-    modify_genbank(temp_gb_file, new_seq, args.start, args.end, args.locus_tag, target_seq, product, translation, protein_id, primers, output_path)
-    
-    # Save log to Excel
+    # Save log to Excel (single file for all locus_tags)
     log_df = pd.DataFrame(excel_log)
-    log_file = os.path.join(args.output_dir, f"log_{args.locus_tag}.xlsx")
+    log_file = os.path.join(args.output_dir, f"log_{'_'.join(locus_tags)}.xlsx")
     log_df.to_excel(log_file, index=False)
-    
-    print(f"Updated GenBank file saved to: {output_path}")
     print(f"Log saved to: {log_file}")
 
 if __name__ == "__main__":
