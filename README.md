@@ -84,10 +84,10 @@ The `xlsx` file from DNMB must include the following columns:
 Column Name        | Description                       | Example
 -------------------|-----------------------------------|-----------------------
 `locus_tag`        | Gene identifier                  | `QT234_RS00005`
-`rearranged_nt_seq`| Nucleotide sequence              | `ATGC...`
+`rearranged_nt_seq`| Nucleotide sequence              | `GTGGAA...`
 `direction`        | Gene direction (`+` or `-`)      | `+`
-`product`          | Gene product description         | `beta-lactamase`
-`translation`      | Translated amino acid sequence   | `MSIQHFRV...`
+`product`          | Gene product description         | `chromosomal replication initiator protein DnaA`
+`translation`      | Translated amino acid sequence   | `MENIHDLWDRVL...`
 `protein_id`       | Protein ID                       | `WP_289651751.1`
 
 - For concatenated genes (e.g., `QT234_RS00005-00010`), each `locus_tag` must exist as a separate row in the `xlsx`.
