@@ -22,23 +22,19 @@ QUALIFIER_START = 21  # Starting column for qualifiers (21 spaces)
 FEATURE_WIDTH = 15    # Maximum width for feature names
 
 def read_genbank_table(file_path):
-    # Log the start of reading the GenBank table
     logging.info(f"Reading GenBank table from {file_path}")
     start_time = time.time()
     if file_path.endswith('.xlsx'):
         df = pd.read_excel(file_path)
     else:
         df = pd.read_csv(file_path, sep='\t')
-    # Log the completion of loading the table
     logging.info(f"GenBank table loaded in {time.time() - start_time:.2f} seconds")
     return df
 
 def get_target_sequence(genbank_df, locus_tag):
-    # Log the start of fetching sequence data
     logging.info(f"Fetching sequence and details for locus_tag: {locus_tag}")
     start_time = time.time()
     
-    # Check if locus_tag contains a hyphen (indicating concatenated genes)
     if '-' in locus_tag:
         locus_tags = locus_tag.split('-')
         seqs = []
@@ -57,15 +53,14 @@ def get_target_sequence(genbank_df, locus_tag):
             translation = target_row['translation'].iloc[0] if 'translation' in target_row.columns else ""
             protein_id = target_row['protein_id'].iloc[0] if 'protein_id' in target_row.columns else f"{tag}_protein"
             
-            seqs.append(seq if direction == '+' else str(Seq.Seq(seq).reverse_complement()))
+            seqs.append(seq)
             directions.append(direction)
             products.append(product)
             translations.append(translation)
             protein_ids.append(protein_id)
         
-        # Combine the data for concatenated genes
         combined_seq = ''.join(seqs)
-        combined_direction = '+'  # Default to '+' (can add logic for complex cases if needed)
+        combined_direction = '+'  # Default to '+' (concatenation assumes forward assembly)
         combined_product = " and ".join(products)
         combined_translation = ''.join(translations)
         combined_protein_id = "-".join(protein_ids)
@@ -73,7 +68,6 @@ def get_target_sequence(genbank_df, locus_tag):
         logging.info(f"Combined sequence for {locus_tag} fetched in {time.time() - start_time:.2f} seconds")
         return combined_seq, combined_direction, combined_product, combined_translation, combined_protein_id
     else:
-        # Handle single locus_tag
         target_row = genbank_df[genbank_df['locus_tag'] == locus_tag]
         if target_row.empty:
             raise ValueError(f"Locus tag {locus_tag} not found in GenBank table.")
@@ -86,31 +80,26 @@ def get_target_sequence(genbank_df, locus_tag):
         return seq, direction, product, translation, protein_id
 
 def read_snapgene_dna(file_path):
-    # Log the start of reading the SnapGene file
     logging.info(f"Reading SnapGene file from {file_path}")
     start_time = time.time()
     snap_dict = snapgene_reader.snapgene_file_to_dict(file_path)
     seq = Seq.Seq(snap_dict['seq'])
     record = SeqRecord(seq, id=snap_dict.get('name', 'vector'), description='')
-    # Log the completion of loading the SnapGene file
     logging.info(f"SnapGene file loaded in {time.time() - start_time:.2f} seconds")
     logging.info("Assuming vector promoter direction is 5'->3'")
     return record
 
 def convert_dna_to_genbank(dna_file_path, locus_tag):
-    # Log the start of converting the DNA file to GenBank format
     logging.info(f"Converting {dna_file_path} to GenBank format")
     snapgene_path = "/Applications/SnapGene.app/Contents/MacOS/SnapGene"
     desktop_path = os.path.expanduser("~/Desktop")
     temp_gb_file = os.path.abspath(os.path.join(desktop_path, f"temp_genbank_{locus_tag}.gbk"))
     
     if os.path.exists(temp_gb_file):
-        # Skip conversion if the file already exists
         logging.info(f"{temp_gb_file} already exists, skipping conversion")
         return temp_gb_file
     
     cmd = f'{snapgene_path} --convert "GenBank - SnapGene" --input "{dna_file_path}" --output "{temp_gb_file}"'
-    # Log the command being executed
     logging.debug(f"Executing command: {cmd}")
     print(f"Executing SnapGene CLI command: {cmd}")
     
@@ -122,10 +111,8 @@ def convert_dna_to_genbank(dna_file_path, locus_tag):
             raise FileNotFoundError(f"Output file {temp_gb_file} not generated")
         if os.path.getsize(temp_gb_file) == 0:
             raise ValueError(f"Output file {temp_gb_file} is empty")
-        # Log successful conversion
         logging.info(f"Converted {dna_file_path} to {temp_gb_file}")
     except Exception as e:
-        # Log any errors during conversion
         logging.error(f"Error during conversion: {str(e)}")
         if os.path.exists(temp_gb_file):
             os.remove(temp_gb_file)
@@ -134,13 +121,11 @@ def convert_dna_to_genbank(dna_file_path, locus_tag):
 
 def replace_sequence(vector_seq, start, end, insert_seq):
     start, end = int(start) - 1, int(end)
-    # Log the start of sequence replacement
     logging.info(f"Replacing sequence from {start + 1} to {end} with target sequence of length {len(insert_seq)}")
     start_time = time.time()
     if start < 0 or end > len(vector_seq) or start >= end:
         raise ValueError("Invalid start or end position.")
     new_seq = vector_seq[:start] + insert_seq + vector_seq[end:]
-    # Log the completion of sequence replacement
     logging.info(f"New sequence length: {len(new_seq)}. Sequence replaced in {time.time() - start_time:.2f} seconds")
     return new_seq
 
@@ -150,22 +135,23 @@ def check_self_dimerization(primer_seq, threshold=8):
     matches = nt_search(primer_seq, rev_comp[1:])
     for pos in matches:
         if isinstance(pos, int) and pos > 0 and len(primer_seq) - pos >= threshold:
-            # Warn if self-dimerization is detected
             logging.warning(f"Self-dimerization detected in {primer_seq} at position {pos}")
             return True
     return False
 
-def design_gibson_primers(vector_seq, insert_seq, start, tm_target=60, overlap_length=20, min_target_length=16, max_target_length=50, max_iterations=100):
-    # Log the start of primer design
+def design_gibson_primers(vector_seq, insert_seq, start, end, tm_target=60, overlap_length=20, min_target_length=16, max_target_length=50, max_iterations=100):
     logging.info("Designing Gibson Assembly primers")
     start_time = time.time()
-    start = int(start) - 1
+    start = int(start) - 1  # 0-based
+    end = int(end)        # 0-based after adjustment
     
     vector_seq = vector_seq.lower()
     insert_seq = insert_seq.upper()
     
+    # Upstream overlap: vector sequence before the insertion point
     upstream_overlap = str(vector_seq[start - overlap_length:start])
-    downstream_overlap = str(vector_seq[start:start + overlap_length])
+    # Downstream overlap: vector sequence after the deletion endpoint
+    downstream_overlap = str(vector_seq[end:end + overlap_length])
     
     insert_left = insert_seq[:max(min_target_length, overlap_length)]
     insert_right = insert_seq[-max(min_target_length, overlap_length):]
@@ -228,7 +214,6 @@ def design_gibson_primers(vector_seq, insert_seq, start, tm_target=60, overlap_l
         iteration += 1
     
     if iteration >= max_iterations:
-        # Warn if maximum iterations are reached
         logging.warning(f"Max iterations reached. Using best approximations: Forward Tm (Target)={best_forward['tm_target']:.2f}, Reverse Tm (Target)={best_reverse['tm_target']:.2f}")
     forward_primer = best_forward["primer"]
     forward_tm_target = best_forward["tm_target"]
@@ -237,7 +222,6 @@ def design_gibson_primers(vector_seq, insert_seq, start, tm_target=60, overlap_l
     reverse_tm_target = best_reverse["tm_target"]
     reverse_tm_full = best_reverse["tm_full"]
     
-    # Log the completion of primer design
     logging.info(f"Primers designed in {time.time() - start_time:.2f} seconds")
     logging.info(f"Forward Primer: {forward_primer} (Target Length: {len(insert_left)})")
     logging.info(f"Reverse Primer: {reverse_primer} (Target Length: {len(insert_right)})")
@@ -250,12 +234,11 @@ def design_gibson_primers(vector_seq, insert_seq, start, tm_target=60, overlap_l
         "reverse_tm_full": reverse_tm_full,
         "forward_start": start - overlap_length + 1,  # 1-based
         "forward_end": start + len(insert_left),      # 1-based
-        "reverse_start": start + len(insert_seq) - len(insert_right) + 1,  # 1-based
-        "reverse_end": start + len(insert_seq) + overlap_length  # 1-based
+        "reverse_start": end - len(insert_right) + 1, # 1-based, adjusted to end
+        "reverse_end": end + overlap_length           # 1-based
     }
 
 def adjust_feature_location(line, start, end, length_diff):
-    """Adjust feature locations and maintain strict formatting"""
     if not line.strip() or line.strip().startswith("/"):
         return line
     
@@ -264,8 +247,7 @@ def adjust_feature_location(line, start, end, length_diff):
         return line
     
     feature_type = parts[0]
-    location = parts[1].split()[0]  # Extract only the location part
-    # Log the original feature details
+    location = parts[1].split()[0]
     logging.debug(f"Original feature: {feature_type} at {location}")
     
     start_1based = start
@@ -283,7 +265,6 @@ def adjust_feature_location(line, start, end, length_diff):
                 loc_end += length_diff
                 adjusted_locs.append(f"{loc_start}..{loc_end}")
             else:
-                # Log removal of overlapping feature
                 logging.debug(f"Removing feature {feature_type} at {loc} overlapping insertion {start_1based}..{end_1based}")
                 return None
         if adjusted_locs:
@@ -301,7 +282,6 @@ def adjust_feature_location(line, start, end, length_diff):
             new_location = f"complement({loc_start}..{loc_end})"
             return f"     {feature_type:<{FEATURE_WIDTH}} {new_location}\n"
         else:
-            # Log removal of overlapping feature
             logging.debug(f"Removing feature {feature_type} at {location} overlapping insertion {start_1based}..{end_1based}")
             return None
     
@@ -315,7 +295,6 @@ def adjust_feature_location(line, start, end, length_diff):
             new_location = f"{loc_start}..{loc_end}"
             return f"     {feature_type:<{FEATURE_WIDTH}} {new_location}\n"
         else:
-            # Log removal of overlapping feature
             logging.debug(f"Removing feature {feature_type} at {location} overlapping insertion {start_1based}..{end_1based}")
             return None
     
@@ -329,7 +308,6 @@ def adjust_feature_location(line, start, end, length_diff):
             new_location = f"{loc_start}^{loc_end}"
             return f"     {feature_type:<{FEATURE_WIDTH}} {new_location}\n"
         else:
-            # Log removal of overlapping feature
             logging.debug(f"Removing feature {feature_type} at {location} overlapping insertion {start_1based}..{end_1based}")
             return None
     
@@ -342,26 +320,23 @@ def adjust_feature_location(line, start, end, length_diff):
             new_location = str(loc)
             return f"     {feature_type:<{FEATURE_WIDTH}} {new_location}\n"
         else:
-            # Log removal of overlapping feature
             logging.debug(f"Removing feature {feature_type} at {location} overlapping insertion {start_1based}..{end_1based}")
             return None
     
     return line
 
 def format_long_qualifier(value, first_line_prefix, subsequent_prefix, use_quotes=False, is_target_translation=False):
-    """Format qualifier values, preserving newlines and splitting long values"""
     lines = []
     
     if is_target_translation and use_quotes:
-        # For target gene's /translation: remove newlines and split
-        value = value.replace('\n', '')  # Remove newlines
+        value = value.replace('\n', '')
         remaining_value = value
         first_line_done = False
         
         while remaining_value:
             if not first_line_done:
                 prefix = first_line_prefix
-                max_width = MAX_LINE_WIDTH - len(first_line_prefix) - 1  # Space for opening quote
+                max_width = MAX_LINE_WIDTH - len(first_line_prefix) - 1
                 split_value = remaining_value[:max_width]
                 lines.append(f"{prefix}\"{split_value}\n")
                 remaining_value = remaining_value[max_width:]
@@ -377,7 +352,6 @@ def format_long_qualifier(value, first_line_prefix, subsequent_prefix, use_quote
                     lines.append(f"{prefix}{remaining_value}\"\n")
                     break
     else:
-        # For other qualifiers: preserve newlines
         original_lines = value.split('\n')
         for i, line in enumerate(original_lines):
             if i == 0:
@@ -401,7 +375,6 @@ def format_long_qualifier(value, first_line_prefix, subsequent_prefix, use_quote
     return lines
 
 def modify_genbank(temp_gb_file, new_seq, start, end, locus_tag, target_seq, product, translation, protein_id, primers, output_path):
-    # Log the start of GenBank file modification
     logging.info(f"Modifying GenBank file {temp_gb_file} to {output_path}")
     start_time = time.time()
     
@@ -446,12 +419,10 @@ def modify_genbank(temp_gb_file, new_seq, start, end, locus_tag, target_seq, pro
             header_lines[i] = "".join(parts)
     
     length_diff = len(target_seq) - (end - start)
-    # Log the length difference for feature adjustment
     logging.debug(f"Length difference for feature adjustment: {length_diff}")
     adjusted_features = []
     current_feature_lines = []
     
-    # Adjust existing feature locations and maintain formatting
     for line in feature_lines:
         if line.strip() and not line.strip().startswith("/"):
             if current_feature_lines:
@@ -467,7 +438,7 @@ def modify_genbank(temp_gb_file, new_seq, start, end, locus_tag, target_seq, pro
                     for i, (key, value) in enumerate(qualifiers):
                         prefix = f"{' ' * QUALIFIER_START}{key}="
                         subsequent_prefix = " " * QUALIFIER_START
-                        use_quotes = False  # No quotes for existing features
+                        use_quotes = False
                         formatted_lines = format_long_qualifier(value, prefix, subsequent_prefix, use_quotes)
                         adjusted_features.extend(formatted_lines)
             current_feature_lines = [line]
@@ -487,11 +458,10 @@ def modify_genbank(temp_gb_file, new_seq, start, end, locus_tag, target_seq, pro
             for i, (key, value) in enumerate(qualifiers):
                 prefix = f"{' ' * QUALIFIER_START}{key}="
                 subsequent_prefix = " " * QUALIFIER_START
-                use_quotes = False  # No quotes for existing features
+                use_quotes = False
                 formatted_lines = format_long_qualifier(value, prefix, subsequent_prefix, use_quotes)
                 adjusted_features.extend(formatted_lines)
     
-    # Add target gene CDS
     target_end = start + len(target_seq) - 1
     adjusted_features.append(f"     CDS             {start}..{target_end + 1}\n")
     qualifiers = [
@@ -503,12 +473,11 @@ def modify_genbank(temp_gb_file, new_seq, start, end, locus_tag, target_seq, pro
     for i, (key, value) in enumerate(qualifiers):
         prefix = f"{' ' * QUALIFIER_START}{key}="
         subsequent_prefix = " " * QUALIFIER_START
-        use_quotes = (key == "/translation")  # Use quotes only for /translation
-        is_target_translation = (key == "/translation")  # Indicate target gene's /translation
+        use_quotes = (key == "/translation")
+        is_target_translation = (key == "/translation")
         formatted_lines = format_long_qualifier(value, prefix, subsequent_prefix, use_quotes, is_target_translation)
         adjusted_features.extend(formatted_lines)
     
-    # Add primers (using 'primer' feature) - exclude /primer qualifier
     adjusted_features.append(f"     primer          {primers['forward_start']}..{primers['forward_end']}\n")
     qualifiers = [
         ("/label", "Gibson_Forward"),
@@ -533,7 +502,6 @@ def modify_genbank(temp_gb_file, new_seq, start, end, locus_tag, target_seq, pro
         formatted_lines = format_long_qualifier(value, prefix, subsequent_prefix, use_quotes)
         adjusted_features.extend(formatted_lines)
     
-    # Update ORIGIN section
     origin_lines = ["ORIGIN\n"]
     seq_str = str(new_seq).lower()
     for i in range(0, len(seq_str), 60):
@@ -549,12 +517,10 @@ def modify_genbank(temp_gb_file, new_seq, start, end, locus_tag, target_seq, pro
     with open(output_path, 'w') as f:
         f.writelines(new_lines)
     
-    # Log the completion of GenBank file modification
     logging.info(f"GenBank file modified in {time.time() - start_time:.2f} seconds")
     logging.debug(f"Final adjusted features: {adjusted_features}")
 
 def main():
-    # Set up argument parser
     parser = argparse.ArgumentParser(description="Design Gibson Assembly primers and update DNA sequence in GenBank format with primer features.")
     parser.add_argument("--genbank_table", required=True, help="Path to GenBank table file (TSV or XLSX format)")
     parser.add_argument("--locus_tag", required=True, help="Target locus_tag(s) to clone, use '-' for concatenation (e.g., QT234_RS00005-00010) or ',' for multiple separate genes (e.g., QT234_RS00005,QT234_RS00010)")
@@ -570,34 +536,22 @@ def main():
     args.vector_file = os.path.abspath(args.vector_file)
     args.output_dir = os.path.abspath(args.output_dir)
     
-    # Read GenBank table
     genbank_df = read_genbank_table(args.genbank_table)
     
-    # Split locus_tag by comma for multiple separate genes
     locus_tags = args.locus_tag.split(',')
     
-    # Process each locus_tag
     for locus_tag in locus_tags:
-        locus_tag = locus_tag.strip()  # Remove any extra whitespace
+        locus_tag = locus_tag.strip()
         
-        # Fetch target sequence and metadata
         target_seq, direction, product, translation, protein_id = get_target_sequence(genbank_df, locus_tag)
-        if direction == '-':
-            target_seq = str(Seq.Seq(target_seq).reverse_complement())
-            # Log sequence reversal
-            logging.info(f"Target sequence reversed to match 5'->3' direction")
         
-        # Read SnapGene vector file
         vector_record = read_snapgene_dna(args.vector_file)
         vector_seq = vector_record.seq
         
-        # Replace sequence in vector
         new_seq = replace_sequence(vector_seq, args.start, args.end, target_seq)
         
-        # Design Gibson Assembly primers
-        primers = design_gibson_primers(vector_seq, target_seq, args.start, tm_target=args.tm)
+        primers = design_gibson_primers(vector_seq, target_seq, args.start, args.end, tm_target=args.tm)
         
-        # Print results
         print(f"\nResults for locus_tag: {locus_tag}")
         print("Forward Primer (Backbone 5' + Target 5'):", primers["forward_primer"])
         print("Forward Tm (Target part only):", primers["forward_tm_target"])
@@ -606,7 +560,6 @@ def main():
         print("Reverse Tm (Target part only):", primers["reverse_tm_target"])
         print("Reverse Tm (Full):", primers["reverse_tm_full"])
         
-        # Append to Excel log
         excel_log.append({
             "Locus Tag": locus_tag,
             "Forward Primer (Backbone 5' + Target 5')": primers["forward_primer"],
@@ -617,7 +570,6 @@ def main():
             "Reverse Tm (Full)": primers["reverse_tm_full"]
         })
         
-        # Convert and modify GenBank file
         temp_gb_file = convert_dna_to_genbank(args.vector_file, locus_tag)
         os.makedirs(args.output_dir, exist_ok=True)
         output_path = os.path.join(args.output_dir, f"{locus_tag}_vector.gbk")
@@ -625,7 +577,6 @@ def main():
         
         print(f"Updated GenBank file saved to: {output_path}")
     
-    # Save log to Excel (single file for all locus_tags)
     log_df = pd.DataFrame(excel_log)
     log_file = os.path.join(args.output_dir, f"log_{'_'.join(locus_tags)}.xlsx")
     log_df.to_excel(log_file, index=False)
