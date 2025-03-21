@@ -55,8 +55,8 @@ def get_deletion_arms(genbank_records, genbank_df, locus_tag, upstream_bp, downs
         if start_row.empty or end_row.empty:
             raise ValueError(f"One or both locus tags ({start_tag}, {end_tag}) not found in the Excel table.")
         
-        target_start = int(start_row['start'].iloc[0])  # 1-based
-        target_end = int(end_row['end'].iloc[0])        # 1-based
+        target_start = int(start_row['start'].iloc[0])
+        target_end = int(end_row['end'].iloc[0])
         
         if target_start >= target_end:
             raise ValueError(f"Start locus_tag {start_tag} must be before end locus_tag {end_tag} in the genome.")
@@ -68,17 +68,14 @@ def get_deletion_arms(genbank_records, genbank_df, locus_tag, upstream_bp, downs
         target_start = int(target_row['start'].iloc[0])
         target_end = int(target_row['end'].iloc[0])
     
-    # Upstream과 Downstream 좌표 계산 (1-based)
     upstream_start = max(1, target_start - upstream_bp)
     upstream_end = target_start - 1
     downstream_start = target_end + 1
     downstream_end = min(seq_length, target_end + downstream_bp)
     
-    # 서열 추출 (0-based로 변환)
     upstream_seq = str(target_record.seq[upstream_start - 1:upstream_end])
     downstream_seq = str(target_record.seq[downstream_start - 1:downstream_end])
     
-    # 길이 검증
     upstream_length = upstream_end - (upstream_start - 1)
     downstream_length = downstream_end - (downstream_start - 1)
     if upstream_length != upstream_bp:
@@ -120,7 +117,7 @@ def read_snapgene_dna(file_path):
     return record
 
 def convert_dna_to_genbank(dna_file_path, locus_tag):
-    logging.info(f"Converting {dna_file_path} to GenBank format")
+    logging.info(f"Converting {dna_file_path} to GenBank format for {locus_tag}")
     snapgene_path = "/Applications/SnapGene.app/Contents/MacOS/SnapGene"
     desktop_path = os.path.expanduser("~/Desktop")
     temp_gb_file = os.path.abspath(os.path.join(desktop_path, f"temp_genbank_{locus_tag}.gbk"))
@@ -741,13 +738,13 @@ def modify_genbank(temp_gb_file, new_seq, start, end, locus_tag, target_seq, pro
     logging.debug(f"Final adjusted features: {adjusted_features}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Design Gibson Assembly primers for deletion vector construction using an Excel table.")
-    parser.add_argument("--genbank_file", required=True, help="Path to GenBank file containing the target genome sequence")
-    parser.add_argument("--genbank_table", required=True, help="Path to GenBank table file (TSV or XLSX format) for locus_tag position and metadata")
-    parser.add_argument("--locus_tag", required=True, help="Target locus_tag to delete (single gene or range as START-END)")
+    parser = argparse.ArgumentParser(description="Design Gibson Assembly primers for deletion vector construction for multiple targets.")
+    parser.add_argument("--genbank_file", required=True, help="Path to the GenBank file containing the target genome sequence")
+    parser.add_argument("--genbank_table", required=True, help="Path to the table file (TSV or XLSX) for locus_tag position and metadata")
+    parser.add_argument("--locus_tag", required=True, help="Target locus_tag(s) to delete (e.g., 'A, B' or 'A-B' or single 'A')")
     parser.add_argument("--upstream_bp", type=int, required=True, help="Number of base pairs upstream of the target locus_tag")
     parser.add_argument("--downstream_bp", type=int, required=True, help="Number of base pairs downstream of the target locus_tag")
-    parser.add_argument("--vector_file", required=True, help="Path to SnapGene DNA vector file (.dna)")
+    parser.add_argument("--vector_file", required=True, help="Path to the SnapGene DNA vector file (.dna)")
     parser.add_argument("--start", required=True, type=int, help="Start position in vector for insertion (1-based)")
     parser.add_argument("--end", required=True, type=int, help="End position in vector for insertion (1-based)")
     parser.add_argument("--output_dir", default="deletion_results", help="Directory to save output files")
@@ -760,58 +757,74 @@ def main():
     args.vector_file = os.path.abspath(args.vector_file)
     args.output_dir = os.path.abspath(args.output_dir)
     
+    # locus_tag을 쉼표로 분리
+    locus_tags = [tag.strip() for tag in args.locus_tag.split(',')]
+    
     genbank_records = read_genbank_file(args.genbank_file)
     genbank_df = read_genbank_table(args.genbank_table)
     vector_record = read_snapgene_dna(args.vector_file)
     vector_seq = vector_record.seq
     
-    target_seq, direction, product, translation, protein_id, cds_positions = get_deletion_arms(genbank_records, genbank_df, args.locus_tag, args.upstream_bp, args.downstream_bp)
-    
-    new_seq = replace_sequence(vector_seq, args.start, args.end, target_seq)
-    
-    primers = design_deletion_primers(vector_seq, target_seq, args.start, args.end, args.upstream_bp, args.downstream_bp, tm_target=args.tm)
-    
-    print(f"\nResults for deletion of locus_tag: {args.locus_tag}")
-    print("Upstream Forward Primer (Vector 5' + Upstream 5'):", primers["upstream_forward_primer"])
-    print("Upstream Forward Tm (Target):", primers["upstream_forward_tm_target"])
-    print("Upstream Forward Tm (Full):", primers["upstream_forward_tm_full"])
-    print("Upstream Reverse Primer (Upstream 3' rev_comp + Downstream 5' rev_comp):", primers["upstream_reverse_primer"])
-    print("Upstream Reverse Tm (Target):", primers["upstream_reverse_tm_target"])
-    print("Upstream Reverse Tm (Full):", primers["upstream_reverse_tm_full"])
-    print("Downstream Forward Primer (Upstream 3' + Downstream 5'):", primers["downstream_forward_primer"])
-    print("Downstream Forward Tm (Target):", primers["downstream_forward_tm_target"])
-    print("Downstream Forward Tm (Full):", primers["downstream_forward_tm_full"])
-    print("Downstream Reverse Primer (Downstream 3' rev_comp + Vector 3' rev_comp):", primers["downstream_reverse_primer"])
-    print("Downstream Reverse Tm (Target):", primers["downstream_reverse_tm_target"])
-    print("Downstream Reverse Tm (Full):", primers["downstream_reverse_tm_full"])
-    
-    excel_log.append({
-        "Locus Tag": args.locus_tag,
-        "Upstream Forward Primer": primers["upstream_forward_primer"],
-        "Upstream Forward Tm (Target)": primers["upstream_forward_tm_target"],
-        "Upstream Forward Tm (Full)": primers["upstream_forward_tm_full"],
-        "Upstream Reverse Primer": primers["upstream_reverse_primer"],
-        "Upstream Reverse Tm (Target)": primers["upstream_reverse_tm_target"],
-        "Upstream Reverse Tm (Full)": primers["upstream_reverse_tm_full"],
-        "Downstream Forward Primer": primers["downstream_forward_primer"],
-        "Downstream Forward Tm (Target)": primers["downstream_forward_tm_target"],
-        "Downstream Forward Tm (Full)": primers["downstream_forward_tm_full"],
-        "Downstream Reverse Primer": primers["downstream_reverse_primer"],
-        "Downstream Reverse Tm (Target)": primers["downstream_reverse_tm_target"],
-        "Downstream Reverse Tm (Full)": primers["downstream_reverse_tm_full"]
-    })
-    
-    temp_gb_file = convert_dna_to_genbank(args.vector_file, f"{args.locus_tag}_deletion")
     os.makedirs(args.output_dir, exist_ok=True)
-    output_path = os.path.join(args.output_dir, f"{args.locus_tag}_deletion_vector.gbk")
-    modify_genbank(temp_gb_file, new_seq, args.start, args.end, args.locus_tag, target_seq, product, translation, protein_id, primers, output_path, cds_positions, direction)
+    excel_log.clear()  # 여러 타겟을 위해 로그 초기화
     
-    print(f"Updated GenBank file saved to: {output_path}")
+    for locus_tag in locus_tags:
+        print(f"\nProcessing locus_tag: {locus_tag}")
+        
+        target_seq, direction, product, translation, protein_id, cds_positions = get_deletion_arms(
+            genbank_records, genbank_df, locus_tag, args.upstream_bp, args.downstream_bp
+        )
+        
+        new_seq = replace_sequence(vector_seq, args.start, args.end, target_seq)
+        
+        primers = design_deletion_primers(
+            vector_seq, target_seq, args.start, args.end, args.upstream_bp, args.downstream_bp, tm_target=args.tm
+        )
+        
+        print(f"Results for deletion of locus_tag: {locus_tag}")
+        print("Upstream Forward Primer (Vector 5' + Upstream 5'):", primers["upstream_forward_primer"])
+        print("Upstream Forward Tm (Target):", primers["upstream_forward_tm_target"])
+        print("Upstream Forward Tm (Full):", primers["upstream_forward_tm_full"])
+        print("Upstream Reverse Primer (Upstream 3' rev_comp + Downstream 5' rev_comp):", primers["upstream_reverse_primer"])
+        print("Upstream Reverse Tm (Target):", primers["upstream_reverse_tm_target"])
+        print("Upstream Reverse Tm (Full):", primers["upstream_reverse_tm_full"])
+        print("Downstream Forward Primer (Upstream 3' + Downstream 5'):", primers["downstream_forward_primer"])
+        print("Downstream Forward Tm (Target):", primers["downstream_forward_tm_target"])
+        print("Downstream Forward Tm (Full):", primers["downstream_forward_tm_full"])
+        print("Downstream Reverse Primer (Downstream 3' rev_comp + Vector 3' rev_comp):", primers["downstream_reverse_primer"])
+        print("Downstream Reverse Tm (Target):", primers["downstream_reverse_tm_target"])
+        print("Downstream Reverse Tm (Full):", primers["downstream_reverse_tm_full"])
+        
+        excel_log.append({
+            "Locus Tag": locus_tag,
+            "Upstream Forward Primer": primers["upstream_forward_primer"],
+            "Upstream Forward Tm (Target)": primers["upstream_forward_tm_target"],
+            "Upstream Forward Tm (Full)": primers["upstream_forward_tm_full"],
+            "Upstream Reverse Primer": primers["upstream_reverse_primer"],
+            "Upstream Reverse Tm (Target)": primers["upstream_reverse_tm_target"],
+            "Upstream Reverse Tm (Full)": primers["upstream_reverse_tm_full"],
+            "Downstream Forward Primer": primers["downstream_forward_primer"],
+            "Downstream Forward Tm (Target)": primers["downstream_forward_tm_target"],
+            "Downstream Forward Tm (Full)": primers["downstream_forward_tm_full"],
+            "Downstream Reverse Primer": primers["downstream_reverse_primer"],
+            "Downstream Reverse Tm (Target)": primers["downstream_reverse_tm_target"],
+            "Downstream Reverse Tm (Full)": primers["downstream_reverse_tm_full"]
+        })
+        
+        temp_gb_file = convert_dna_to_genbank(args.vector_file, f"{locus_tag}_deletion")
+        output_path = os.path.join(args.output_dir, f"{locus_tag}_deletion_vector.gbk")
+        modify_genbank(
+            temp_gb_file, new_seq, args.start, args.end, locus_tag, target_seq, product, translation, 
+            protein_id, primers, output_path, cds_positions, direction
+        )
+        
+        print(f"Updated GenBank file saved to: {output_path}")
     
+    # 모든 타겟 처리 후 로그 저장
     log_df = pd.DataFrame(excel_log)
-    log_file = os.path.join(args.output_dir, f"log_{args.locus_tag}_deletion.xlsx")
+    log_file = os.path.join(args.output_dir, "log_deletions.xlsx")
     log_df.to_excel(log_file, index=False)
-    print(f"Log saved to: {log_file}")
+    print(f"Combined log saved to: {log_file}")
 
 if __name__ == "__main__":
     main()
