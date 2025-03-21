@@ -128,11 +128,15 @@ python PrimerDesigner_for_Deletion.py --genbank_file <GENBANK_FILE> --genbank_ta
 ### examples
 Single Gene Deletion
 ```bash
-python script.py --genbank_file genome.gb --genbank_table loci.xlsx --locus_tag QT235_RS00080 --upstream_bp 500 --downstream_bp 500 --vector_file vector.dna --start 3977 --end 4976 --output_dir deletion_output
+python PrimerDesigner_for_Deletion.py --genbank_file genome.gb --genbank_table loci.xlsx --locus_tag QT235_RS00080 --upstream_bp 500 --downstream_bp 500 --vector_file vector.dna --start 3977 --end 4976 --output_dir deletion_output
+```
+Multiple Separate Genes (Comma-Separated) For processing multiple genes independently in a loop:
+```bash
+python PrimerDesigner_for_Deletion.py --genbank_file genome.gb --genbank_table loci.xlsx --locus_tag QT235_RS00080,QT235_RS00090 --upstream_bp 500 --downstream_bp 500 --vector_file vector.dna --start 3977 --end 4976 --output_dir deletion_output
 ```
 Multi-Gene Region Deletion
 ```bash
-python script.py --genbank_file genome.gb --genbank_table loci.xlsx --locus_tag QT235_RS00080-QT235_RS00090 --upstream_bp 500 --downstream_bp 500 --vector_file vector.dna --start 3977 --end 4976 --output_dir deletion_output
+python PrimerDesigner_for_Deletion.py --genbank_file genome.gb --genbank_table loci.xlsx --locus_tag QT235_RS00080-QT235_RS00090 --upstream_bp 500 --downstream_bp 500 --vector_file vector.dna --start 3977 --end 4976 --output_dir deletion_output
 ```
 
 Output
