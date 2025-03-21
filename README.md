@@ -6,7 +6,9 @@
   - `biopython`
   - `snapgene_reader`
 - SnapGene: Requires SnapGene CLI for converting `.dna` files to GenBank format.
-- Operating System: macOS (SnapGene path set to `/Applications/SnapGene.app/Contents/MacOS/SnapGene`).
+- Operating System: (The right location should be checked)
+  - macOS (SnapGene path set to `/Applications/SnapGene.app/Contents/MacOS/SnapGene`).
+  - Windows (SnapGene path set to `C:\Program Files (x86)\SnapGene`). 
 
 ### Installation
 Install the required packages:
