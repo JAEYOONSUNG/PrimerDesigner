@@ -125,6 +125,12 @@ python PrimerDesigner_for_Deletion.py --genbank_file <GENBANK_FILE> --genbank_ta
   - output_dir: Directory to save output files (default: deletion_results).
   - tm: Target Tm for primers (default: 60°C, minimum 55°C).
 
+### Input Requirements
+#### `xlsx` File Format
+The `xlsx` file from DNMB
+#### `gb, gbff, or gbk` File Format
+The `genbank` file to extract non coding region
+
 ### examples
 Single Gene Deletion
 ```bash
