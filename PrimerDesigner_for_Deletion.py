@@ -12,7 +12,7 @@ from Bio.SeqUtils import nt_search
 from Bio.SeqUtils import GC
 import sys
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')  # DEBUG -> INFO로 변경
 excel_log = []
 MAX_LINE_WIDTH = 80
 QUALIFIER_START = 21
@@ -55,11 +55,10 @@ def get_deletion_arms(genbank_records, genbank_df, locus_tag, upstream_bp, downs
         if start_row.empty or end_row.empty:
             raise ValueError(f"One or both locus tags ({start_tag}, {end_tag}) not found in the Excel table.")
         
-        target_start = int(start_row['start'].iloc[0])  # 1-based
-        target_end = int(end_row['end'].iloc[0])        # 1-based
+        target_start = int(start_row['start'].iloc[0])
+        target_end = int(end_row['end'].iloc[0])
         
         if target_start > target_end:
-            # Circular genome에서 start가 end보다 클 경우 (끝에서 시작으로 넘어감)
             logging.debug(f"Circular range detected: {target_start} > {target_end}")
     else:
         target_row = genbank_df[genbank_df['locus_tag'] == locus_tag]
@@ -69,27 +68,22 @@ def get_deletion_arms(genbank_records, genbank_df, locus_tag, upstream_bp, downs
         target_start = int(target_row['start'].iloc[0])
         target_end = int(target_row['end'].iloc[0])
     
-    # Upstream 계산 (1-based)
-    upstream_end = target_start - 1  # 삭제 시작 직전
+    upstream_end = target_start - 1
     upstream_start = target_start - upstream_bp
     if upstream_start <= 0:
-        # Circular로 넘어감
-        upstream_start = seq_length + upstream_start  # 음수일 경우 끝에서 시작
+        upstream_start = seq_length + upstream_start
         upstream_seq = str(target_record.seq[upstream_start - 1:] + target_record.seq[:upstream_end])
     else:
         upstream_seq = str(target_record.seq[upstream_start - 1:upstream_end])
     
-    # Downstream 계산 (1-based)
-    downstream_start = target_end + 1  # 삭제 끝 다음
+    downstream_start = target_end + 1
     downstream_end = target_end + downstream_bp
     if downstream_end > seq_length:
-        # Circular로 넘어감
-        downstream_end = downstream_end % seq_length  # 나머지로 시작 위치 계산
+        downstream_end = downstream_end % seq_length
         downstream_seq = str(target_record.seq[downstream_start - 1:] + target_record.seq[:downstream_end])
     else:
         downstream_seq = str(target_record.seq[downstream_start - 1:downstream_end])
     
-    # 길이 검증
     upstream_length = len(upstream_seq)
     downstream_length = len(downstream_seq)
     if upstream_length != upstream_bp:
@@ -114,9 +108,6 @@ def get_deletion_arms(genbank_records, genbank_df, locus_tag, upstream_bp, downs
     
     direction = '+'
     
-    logging.debug(f"Target range: {target_start}..{target_end}")
-    logging.debug(f"Upstream: {upstream_start}..{upstream_end}, Length: {len(upstream_seq)} bp")
-    logging.debug(f"Downstream: {downstream_start}..{downstream_end}, Length: {len(downstream_seq)} bp")
     logging.info(f"Deletion arms fetched in {time.time() - start_time:.2f} seconds")
     return combined_seq, direction, product, translation, protein_id, cds_positions
 
@@ -127,22 +118,20 @@ def read_snapgene_dna(file_path):
     seq = Seq.Seq(snap_dict['seq'])
     record = SeqRecord(seq, id=snap_dict.get('name', 'vector'), description='')
     logging.info(f"SnapGene file loaded in {time.time() - start_time:.2f} seconds")
-    logging.info("Assuming vector promoter direction is 5'->3'")
     return record
 
-def convert_dna_to_genbank(dna_file_path, locus_tag):
-    logging.info(f"Converting {dna_file_path} to GenBank format for {locus_tag}")
+def convert_dna_to_genbank(dna_file_path, temp_file_prefix="temp_genbank"):
+    logging.info(f"Converting {dna_file_path} to GenBank format")
     snapgene_path = "/Applications/SnapGene.app/Contents/MacOS/SnapGene"
     desktop_path = os.path.expanduser("~/Desktop")
-    temp_gb_file = os.path.abspath(os.path.join(desktop_path, f"temp_genbank_{locus_tag}.gbk"))
+    temp_gb_file = os.path.abspath(os.path.join(desktop_path, f"{temp_file_prefix}.gbk"))
     
     if os.path.exists(temp_gb_file):
-        logging.info(f"{temp_gb_file} already exists, skipping conversion")
+        logging.info(f"{temp_gb_file} already exists, using existing file")
         return temp_gb_file
     
     cmd = f'{snapgene_path} --convert "GenBank - SnapGene" --input "{dna_file_path}" --output "{temp_gb_file}"'
     logging.debug(f"Executing command: {cmd}")
-    print(f"Executing SnapGene CLI command: {cmd}")
     
     try:
         exit_code = os.system(cmd)
@@ -302,9 +291,6 @@ def design_deletion_primers(vector_seq, insert_seq, start, end, upstream_length,
             if target_tm_min <= upstream_reverse_tm_target <= target_tm_max:
                 best_upstream_reverse_target = upstream_right
                 best_upstream_reverse_tm_target = upstream_reverse_tm_target
-            logging.debug(f"Upstream_Reverse iteration {iteration}: Length: {len(upstream_right)} bp, Tm: {upstream_reverse_tm_target:.2f}°C")
-        else:
-            break
         iteration += 1
     
     downstream_left = downstream_seq[:min_target_length]
@@ -330,9 +316,6 @@ def design_deletion_primers(vector_seq, insert_seq, start, end, upstream_length,
             if target_tm_min <= downstream_forward_tm_target <= target_tm_max:
                 best_downstream_forward_target = downstream_left
                 best_downstream_forward_tm_target = downstream_forward_tm_target
-            logging.debug(f"Downstream_Forward iteration {iteration}: Length: {len(downstream_left)} bp, Tm: {downstream_forward_tm_target:.2f}°C")
-        else:
-            break
         iteration += 1
     
     max_overlap_length = min(20, max_primer_length - len(best_upstream_reverse_target), max_primer_length - len(best_downstream_forward_target))
@@ -379,13 +362,8 @@ def design_deletion_primers(vector_seq, insert_seq, start, end, upstream_length,
                     break
         iteration += 1
     
-    logging.debug(f"Upstream_Reverse target: {best_upstream_reverse_target}, Length: {len(best_upstream_reverse_target)} bp, Tm: {best_upstream_reverse_tm_target:.2f}°C, GC: {GC(best_upstream_reverse_target):.2f}%")
-    logging.debug(f"Upstream_Reverse full: {upstream_reverse_primer}, Length: {len(upstream_reverse_primer)} bp, Tm: {upstream_reverse_tm_full:.2f}°C")
-    logging.debug(f"Downstream_Forward target: {best_downstream_forward_target}, Length: {len(best_downstream_forward_target)} bp, Tm: {best_downstream_forward_tm_target:.2f}°C, GC: {GC(best_downstream_forward_target):.2f}%")
-    logging.debug(f"Downstream_Forward full: {downstream_forward_primer}, Length: {len(downstream_forward_primer)} bp, Tm: {downstream_forward_tm_full:.2f}°C")
-    logging.debug(f"Final Overlap sequence (5'→3'): {overlap_combined}, Length: {overlap_length_sum} bp, Tm: {overlap_tm:.2f}°C, GC: {GC(overlap_combined):.2f}%")
-    
-    primers = {
+    logging.info(f"Primers designed in {time.time() - start_time:.2f} seconds")
+    return {
         "upstream_forward_primer": best_upstream_forward["primer"],
         "upstream_forward_tm_target": best_upstream_forward["tm_target"],
         "upstream_forward_tm_full": best_upstream_forward["tm_full"],
@@ -407,9 +385,6 @@ def design_deletion_primers(vector_seq, insert_seq, start, end, upstream_length,
         "downstream_reverse_start": start + len(insert_seq) - len(downstream_right) + 1,
         "downstream_reverse_end": start + len(insert_seq) + len(downstream_vector_overlap)
     }
-    
-    logging.info(f"Primers designed in {time.time() - start_time:.2f} seconds")
-    return primers
 
 def adjust_feature_location(line, start, end, length_diff):
     if not line.strip() or line.strip().startswith("/"):
@@ -421,7 +396,6 @@ def adjust_feature_location(line, start, end, length_diff):
     
     feature_type = parts[0]
     location = parts[1].split()[0]
-    logging.debug(f"Original feature: {feature_type} at {location}")
     
     start_1based = start - 1
     end_1based = end
@@ -439,11 +413,9 @@ def adjust_feature_location(line, start, end, length_diff):
                     loc_end += length_diff
                     adjusted_locs.append(f"{loc_start}..{loc_end}")
                 else:
-                    logging.debug(f"Removing feature {feature_type} at {loc} overlapping insertion {start_1based + 1}..{end_1based}")
                     return None
             if adjusted_locs:
                 new_location = f"complement(join({','.join(adjusted_locs)}))"
-                logging.debug(f"Adjusted feature: {feature_type} at {new_location}")
                 return f"     {feature_type:<{FEATURE_WIDTH}} {new_location}\n"
             return None
         else:
@@ -458,11 +430,9 @@ def adjust_feature_location(line, start, end, length_diff):
                     loc_end += length_diff
                     adjusted_locs.append(f"{loc_start}..{loc_end}")
                 else:
-                    logging.debug(f"Removing feature {feature_type} at {loc} overlapping insertion {start_1based + 1}..{end_1based}")
                     return None
             if adjusted_locs:
                 new_location = f"join({','.join(adjusted_locs)})"
-                logging.debug(f"Adjusted feature: {feature_type} at {new_location}")
                 return f"     {feature_type:<{FEATURE_WIDTH}} {new_location}\n"
             return None
     
@@ -475,9 +445,7 @@ def adjust_feature_location(line, start, end, length_diff):
             loc_end += length_diff
             new_location = f"complement({loc_start}..{loc_end})"
         else:
-            logging.debug(f"Removing feature {feature_type} at {location} overlapping insertion {start_1based + 1}..{end_1based}")
             return None
-        logging.debug(f"Adjusted feature: {feature_type} at {new_location}")
         return f"     {feature_type:<{FEATURE_WIDTH}} {new_location}\n"
     
     elif ".." in location:
@@ -489,9 +457,7 @@ def adjust_feature_location(line, start, end, length_diff):
             loc_end += length_diff
             new_location = f"{loc_start}..{loc_end}"
         else:
-            logging.debug(f"Removing feature {feature_type} at {location} overlapping insertion {start_1based + 1}..{end_1based}")
             return None
-        logging.debug(f"Adjusted feature: {feature_type} at {new_location}")
         return f"     {feature_type:<{FEATURE_WIDTH}} {new_location}\n"
     
     elif "^" in location:
@@ -503,9 +469,7 @@ def adjust_feature_location(line, start, end, length_diff):
             loc_end += length_diff
             new_location = f"{loc_start}^{loc_end}"
         else:
-            logging.debug(f"Removing feature {feature_type} at {location} overlapping insertion {start_1based + 1}..{end_1based}")
             return None
-        logging.debug(f"Adjusted feature: {feature_type} at {new_location}")
         return f"     {feature_type:<{FEATURE_WIDTH}} {new_location}\n"
     
     elif location.isdigit():
@@ -516,9 +480,7 @@ def adjust_feature_location(line, start, end, length_diff):
             loc += length_diff
             new_location = str(loc)
         else:
-            logging.debug(f"Removing feature {feature_type} at {location} overlapping insertion {start_1based + 1}..{end_1based}")
             return None
-        logging.debug(f"Adjusted feature: {feature_type} at {new_location}")
         return f"     {feature_type:<{FEATURE_WIDTH}} {new_location}\n"
     
     return line
@@ -617,7 +579,6 @@ def modify_genbank(temp_gb_file, new_seq, start, end, locus_tag, target_seq, pro
             header_lines[i] = "".join(parts)
     
     length_diff = len(target_seq) - (end - (start - 1))
-    logging.debug(f"Length difference for feature adjustment: {length_diff}")
     adjusted_features = []
     current_feature_lines = []
     
@@ -749,13 +710,12 @@ def modify_genbank(temp_gb_file, new_seq, start, end, locus_tag, target_seq, pro
         f.writelines(new_lines)
     
     logging.info(f"GenBank file modified in {time.time() - start_time:.2f} seconds")
-    logging.debug(f"Final adjusted features: {adjusted_features}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Design Gibson Assembly primers for deletion vector construction for multiple targets.")
+    parser = argparse.ArgumentParser(description="Design Gibson Assembly primers for deletion vector construction.")
     parser.add_argument("--genbank_file", required=True, help="Path to the GenBank file containing the target genome sequence")
     parser.add_argument("--genbank_table", required=True, help="Path to the table file (TSV or XLSX) for locus_tag position and metadata")
-    parser.add_argument("--locus_tag", required=True, help="Target locus_tag(s) to delete (e.g., 'A, B' or 'A-B' or single 'A')")
+    parser.add_argument("--locus_tag", required=True, help="Target locus_tag(s) to delete (e.g., 'A, B' or 'A-B' or 'all' for all tags in table)")
     parser.add_argument("--upstream_bp", type=int, required=True, help="Number of base pairs upstream of the target locus_tag")
     parser.add_argument("--downstream_bp", type=int, required=True, help="Number of base pairs downstream of the target locus_tag")
     parser.add_argument("--vector_file", required=True, help="Path to the SnapGene DNA vector file (.dna)")
@@ -771,74 +731,77 @@ def main():
     args.vector_file = os.path.abspath(args.vector_file)
     args.output_dir = os.path.abspath(args.output_dir)
     
-    # locus_tag을 쉼표로 분리
-    locus_tags = [tag.strip() for tag in args.locus_tag.split(',')]
-    
     genbank_records = read_genbank_file(args.genbank_file)
     genbank_df = read_genbank_table(args.genbank_table)
     vector_record = read_snapgene_dna(args.vector_file)
     vector_seq = vector_record.seq
     
     os.makedirs(args.output_dir, exist_ok=True)
-    excel_log.clear()  # 여러 타겟을 위해 로그 초기화
+    excel_log.clear()
+    
+    temp_gb_file = convert_dna_to_genbank(args.vector_file)
+    
+    if args.locus_tag.lower() == "all":
+        locus_tags = genbank_df['locus_tag'].dropna().unique().tolist()
+        logging.info(f"Processing all {len(locus_tags)} locus_tags from the table")
+    else:
+        locus_tags = [tag.strip() for tag in args.locus_tag.split(',')]
+        logging.info(f"Processing specified locus_tags: {locus_tags}")
     
     for locus_tag in locus_tags:
-        print(f"\nProcessing locus_tag: {locus_tag}")
+        try:
+            target_seq, direction, product, translation, protein_id, cds_positions = get_deletion_arms(
+                genbank_records, genbank_df, locus_tag, args.upstream_bp, args.downstream_bp
+            )
+            
+            new_seq = replace_sequence(vector_seq, args.start, args.end, target_seq)
+            
+            primers = design_deletion_primers(
+                vector_seq, target_seq, args.start, args.end, args.upstream_bp, args.downstream_bp, tm_target=args.tm
+            )
+            
+            print(f"\nResults for deletion of locus_tag: {locus_tag}")
+            print(f"Upstream Forward Tm (Target): {primers['upstream_forward_tm_target']:.2f}°C, Tm (Full): {primers['upstream_forward_tm_full']:.2f}°C")
+            print(f"Upstream Reverse Tm (Target): {primers['upstream_reverse_tm_target']:.2f}°C, Tm (Full): {primers['upstream_reverse_tm_full']:.2f}°C")
+            print(f"Downstream Forward Tm (Target): {primers['downstream_forward_tm_target']:.2f}°C, Tm (Full): {primers['downstream_forward_tm_full']:.2f}°C")
+            print(f"Downstream Reverse Tm (Target): {primers['downstream_reverse_tm_target']:.2f}°C, Tm (Full): {primers['downstream_reverse_tm_full']:.2f}°C")
+            
+            excel_log.append({
+                "Locus Tag": locus_tag,
+                "Upstream Forward Primer": primers["upstream_forward_primer"],
+                "Upstream Forward Tm (Target)": primers["upstream_forward_tm_target"],
+                "Upstream Forward Tm (Full)": primers["upstream_forward_tm_full"],
+                "Upstream Reverse Primer": primers["upstream_reverse_primer"],
+                "Upstream Reverse Tm (Target)": primers["upstream_reverse_tm_target"],
+                "Upstream Reverse Tm (Full)": primers["upstream_reverse_tm_full"],
+                "Downstream Forward Primer": primers["downstream_forward_primer"],
+                "Downstream Forward Tm (Target)": primers["downstream_forward_tm_target"],
+                "Downstream Forward Tm (Full)": primers["downstream_forward_tm_full"],
+                "Downstream Reverse Primer": primers["downstream_reverse_primer"],
+                "Downstream Reverse Tm (Target)": primers["downstream_reverse_tm_target"],
+                "Downstream Reverse Tm (Full)": primers["downstream_reverse_tm_full"]
+            })
+            
+            output_path = os.path.join(args.output_dir, f"{locus_tag}_deletion_vector.gbk")
+            modify_genbank(
+                temp_gb_file, new_seq, args.start, args.end, locus_tag, target_seq, product, translation, 
+                protein_id, primers, output_path, cds_positions, direction
+            )
+            
+            print(f"Updated GenBank file saved to: {output_path}")
         
-        target_seq, direction, product, translation, protein_id, cds_positions = get_deletion_arms(
-            genbank_records, genbank_df, locus_tag, args.upstream_bp, args.downstream_bp
-        )
-        
-        new_seq = replace_sequence(vector_seq, args.start, args.end, target_seq)
-        
-        primers = design_deletion_primers(
-            vector_seq, target_seq, args.start, args.end, args.upstream_bp, args.downstream_bp, tm_target=args.tm
-        )
-        
-        print(f"Results for deletion of locus_tag: {locus_tag}")
-        print("Upstream Forward Primer (Vector 5' + Upstream 5'):", primers["upstream_forward_primer"])
-        print("Upstream Forward Tm (Target):", primers["upstream_forward_tm_target"])
-        print("Upstream Forward Tm (Full):", primers["upstream_forward_tm_full"])
-        print("Upstream Reverse Primer (Upstream 3' rev_comp + Downstream 5' rev_comp):", primers["upstream_reverse_primer"])
-        print("Upstream Reverse Tm (Target):", primers["upstream_reverse_tm_target"])
-        print("Upstream Reverse Tm (Full):", primers["upstream_reverse_tm_full"])
-        print("Downstream Forward Primer (Upstream 3' + Downstream 5'):", primers["downstream_forward_primer"])
-        print("Downstream Forward Tm (Target):", primers["downstream_forward_tm_target"])
-        print("Downstream Forward Tm (Full):", primers["downstream_forward_tm_full"])
-        print("Downstream Reverse Primer (Downstream 3' rev_comp + Vector 3' rev_comp):", primers["downstream_reverse_primer"])
-        print("Downstream Reverse Tm (Target):", primers["downstream_reverse_tm_target"])
-        print("Downstream Reverse Tm (Full):", primers["downstream_reverse_tm_full"])
-        
-        excel_log.append({
-            "Locus Tag": locus_tag,
-            "Upstream Forward Primer": primers["upstream_forward_primer"],
-            "Upstream Forward Tm (Target)": primers["upstream_forward_tm_target"],
-            "Upstream Forward Tm (Full)": primers["upstream_forward_tm_full"],
-            "Upstream Reverse Primer": primers["upstream_reverse_primer"],
-            "Upstream Reverse Tm (Target)": primers["upstream_reverse_tm_target"],
-            "Upstream Reverse Tm (Full)": primers["upstream_reverse_tm_full"],
-            "Downstream Forward Primer": primers["downstream_forward_primer"],
-            "Downstream Forward Tm (Target)": primers["downstream_forward_tm_target"],
-            "Downstream Forward Tm (Full)": primers["downstream_forward_tm_full"],
-            "Downstream Reverse Primer": primers["downstream_reverse_primer"],
-            "Downstream Reverse Tm (Target)": primers["downstream_reverse_tm_target"],
-            "Downstream Reverse Tm (Full)": primers["downstream_reverse_tm_full"]
-        })
-        
-        temp_gb_file = convert_dna_to_genbank(args.vector_file, f"{locus_tag}_deletion")
-        output_path = os.path.join(args.output_dir, f"{locus_tag}_deletion_vector.gbk")
-        modify_genbank(
-            temp_gb_file, new_seq, args.start, args.end, locus_tag, target_seq, product, translation, 
-            protein_id, primers, output_path, cds_positions, direction
-        )
-        
-        print(f"Updated GenBank file saved to: {output_path}")
+        except Exception as e:
+            logging.error(f"Error processing locus_tag {locus_tag}: {str(e)}")
+            continue
     
-    # 모든 타겟 처리 후 로그 저장
     log_df = pd.DataFrame(excel_log)
     log_file = os.path.join(args.output_dir, "log_deletions.xlsx")
     log_df.to_excel(log_file, index=False)
     print(f"Combined log saved to: {log_file}")
+    
+    if os.path.exists(temp_gb_file):
+        os.remove(temp_gb_file)
+        logging.info(f"Temporary GenBank file {temp_gb_file} removed")
 
 if __name__ == "__main__":
     main()
