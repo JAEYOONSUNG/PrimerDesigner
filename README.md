@@ -48,7 +48,7 @@ Command-Line Execution Examples
 1. Single Gene
 For designing primers and generating a GenBank file for a single gene:
 ```bash
-python script.py --genbank_table path/to/genbank_table.xlsx --locus_tag QT234_RS00005 --vector_file path/to/vector.dna --start 1000 --end 2000 --output_dir cloning_results
+python PrimerDesigner_for_Gibson.py --genbank_table path/to/genbank_table.xlsx --locus_tag QT234_RS00005 --vector_file path/to/vector.dna --start 1000 --end 2000 --output_dir cloning_results
 ```
 - Output: `QT234_RS00005_vector.gbk` and `log_QT234_RS00005.xlsx`.
 
