@@ -62,6 +62,7 @@ python script.py --genbank_table path/to/genbank_table.xlsx --locus_tag QT234_RS
 ```
 
 ### Arguments
+
 --genbank_table: Path to the `xlsx` or `tsv` file from DNMB (required).
 --locus_tag: Target gene identifier (single: `QT234_RS00005`, concatenated: `QT234_RS00005-00010`) (required).
 --vector_file: Path to the SnapGene `.dna` vector file (required).
