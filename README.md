@@ -63,13 +63,13 @@ python script.py --genbank_table path/to/genbank_table.xlsx --locus_tag QT234_RS
 
 ### Arguments
 
---genbank_table: Path to the `xlsx` or `tsv` file from DNMB (required).
---locus_tag: Target gene identifier (single: `QT234_RS00005`, concatenated: `QT234_RS00005-00010`) (required).
---vector_file: Path to the SnapGene `.dna` vector file (required).
---start: Insertion start position in the vector (1-based, required).
---end: Insertion end position in the vector (1-based, required).
---output_dir: Output directory (default: `cloning_results`).
---tm: Target Tm for primers (default: 60°C).
+  - genbank_table: Path to the `xlsx` or `tsv` file from DNMB (required).
+  - locus_tag: Target gene identifier (single: `QT234_RS00005`, concatenated: `QT234_RS00005-00010`) (required).
+  - vector_file: Path to the SnapGene `.dna` vector file (required).
+  - start: Insertion start position in the vector (1-based, required).
+  - end: Insertion end position in the vector (1-based, required).
+  - output_dir: Output directory (default: `cloning_results`).
+  - tm: Target Tm for primers (default: 60°C).
 
 ### Input Requirements
 #### `xlsx` File Format
@@ -112,16 +112,16 @@ This Python script is designed to automate the design of Gibson Assembly primers
 python PrimerDesigner_for_Deletion.py --genbank_file <GENBANK_FILE> --genbank_table <TABLE_FILE> --locus_tag <LOCUS_TAG> --upstream_bp <UPSTREAM_BP> --downstream_bp <DOWNSTREAM_BP> --vector_file <VECTOR_FILE> --start <START_POS> --end <END_POS> [--output_dir <OUTPUT_DIR>] [--tm <TM>]
 ```
 ### Arguments
---genbank_file: Path to the GenBank file containing the target genome sequence (required).
---genbank_table: Path to the table file (Excel .xlsx or TSV) with locus tag positions and metadata (required).
---locus_tag: Target locus tag to delete. Use START-END for a range (e.g., QT235_RS00080-QT235_RS00090) (required).
---upstream_bp: Number of base pairs upstream of the target (required).
---downstream_bp: Number of base pairs downstream of the target (required).
---vector_file: Path to the SnapGene .dna vector file (required).
---start: Start position in the vector for insertion (1-based, required).
---end: End position in the vector for insertion (1-based, required).
---output_dir: Directory to save output files (default: deletion_results).
---tm: Target Tm for primers (default: 60°C, minimum 55°C).
+  - genbank_file: Path to the GenBank file containing the target genome sequence (required).
+  - genbank_table: Path to the table file (Excel .xlsx or TSV) with locus tag positions and metadata (required).
+  - locus_tag: Target locus tag to delete. Use START-END for a range (e.g., QT235_RS00080-QT235_RS00090) (required).
+  - upstream_bp: Number of base pairs upstream of the target (required).
+  - downstream_bp: Number of base pairs downstream of the target (required).
+  - vector_file: Path to the SnapGene .dna vector file (required).
+  - start: Start position in the vector for insertion (1-based, required).
+  - end: End position in the vector for insertion (1-based, required).
+  - output_dir: Directory to save output files (default: deletion_results).
+  - tm: Target Tm for primers (default: 60°C, minimum 55°C).
 
 ### examples
 Single Gene Deletion
