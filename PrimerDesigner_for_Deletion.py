@@ -55,11 +55,12 @@ def get_deletion_arms(genbank_records, genbank_df, locus_tag, upstream_bp, downs
         if start_row.empty or end_row.empty:
             raise ValueError(f"One or both locus tags ({start_tag}, {end_tag}) not found in the Excel table.")
         
-        target_start = int(start_row['start'].iloc[0])
-        target_end = int(end_row['end'].iloc[0])
+        target_start = int(start_row['start'].iloc[0])  # 1-based
+        target_end = int(end_row['end'].iloc[0])        # 1-based
         
-        if target_start >= target_end:
-            raise ValueError(f"Start locus_tag {start_tag} must be before end locus_tag {end_tag} in the genome.")
+        if target_start > target_end:
+            # Circular genome에서 start가 end보다 클 경우 (끝에서 시작으로 넘어감)
+            logging.debug(f"Circular range detected: {target_start} > {target_end}")
     else:
         target_row = genbank_df[genbank_df['locus_tag'] == locus_tag]
         if target_row.empty:
@@ -68,16 +69,29 @@ def get_deletion_arms(genbank_records, genbank_df, locus_tag, upstream_bp, downs
         target_start = int(target_row['start'].iloc[0])
         target_end = int(target_row['end'].iloc[0])
     
-    upstream_start = max(1, target_start - upstream_bp)
-    upstream_end = target_start - 1
-    downstream_start = target_end + 1
-    downstream_end = min(seq_length, target_end + downstream_bp)
+    # Upstream 계산 (1-based)
+    upstream_end = target_start - 1  # 삭제 시작 직전
+    upstream_start = target_start - upstream_bp
+    if upstream_start <= 0:
+        # Circular로 넘어감
+        upstream_start = seq_length + upstream_start  # 음수일 경우 끝에서 시작
+        upstream_seq = str(target_record.seq[upstream_start - 1:] + target_record.seq[:upstream_end])
+    else:
+        upstream_seq = str(target_record.seq[upstream_start - 1:upstream_end])
     
-    upstream_seq = str(target_record.seq[upstream_start - 1:upstream_end])
-    downstream_seq = str(target_record.seq[downstream_start - 1:downstream_end])
+    # Downstream 계산 (1-based)
+    downstream_start = target_end + 1  # 삭제 끝 다음
+    downstream_end = target_end + downstream_bp
+    if downstream_end > seq_length:
+        # Circular로 넘어감
+        downstream_end = downstream_end % seq_length  # 나머지로 시작 위치 계산
+        downstream_seq = str(target_record.seq[downstream_start - 1:] + target_record.seq[:downstream_end])
+    else:
+        downstream_seq = str(target_record.seq[downstream_start - 1:downstream_end])
     
-    upstream_length = upstream_end - (upstream_start - 1)
-    downstream_length = downstream_end - (downstream_start - 1)
+    # 길이 검증
+    upstream_length = len(upstream_seq)
+    downstream_length = len(downstream_seq)
     if upstream_length != upstream_bp:
         logging.warning(f"Upstream length {upstream_length} does not match requested {upstream_bp} bp")
     if downstream_length != downstream_bp:
