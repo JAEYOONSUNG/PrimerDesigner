@@ -139,13 +139,13 @@ Multi-Gene Region Deletion
 python PrimerDesigner_for_Deletion.py --genbank_file genome.gb --genbank_table loci.xlsx --locus_tag QT235_RS00080-QT235_RS00090 --upstream_bp 500 --downstream_bp 500 --vector_file vector.dna --start 3977 --end 4976 --output_dir deletion_output
 ```
 
-Output
-Updated GenBank File: <output_dir>/<locus_tag>_deletion_vector.gbk
-Log File: <output_dir>/log_<locus_tag>_deletion.xlsx
-The log file contains primer sequences, target Tm, and full Tm values for each designed primer.
+#### Output
+- Updated GenBank File: <output_dir>/<locus_tag>_deletion_vector.gbk
+- Log File: <output_dir>/log_<locus_tag>_deletion.xlsx
+- The log file contains primer sequences, target Tm, and full Tm values for each designed primer.
 
-Key Functions
-get_deletion_arms: Extracts upstream and downstream sequences based on the specified locus_tag(s) and base pair lengths.
-design_deletion_primers: Designs four primers (Upstream_Forward, Upstream_Reverse, Downstream_Forward, Downstream_Reverse) with optimized Tm and overlap.
-replace_sequence: Inserts the deletion arms into the vector sequence at the specified position.
-modify_genbank: Updates the GenBank file with the new sequence and annotations.
+#### Key Functions
+- get_deletion_arms: Extracts upstream and downstream sequences based on the specified locus_tag(s) and base pair lengths.
+- design_deletion_primers: Designs four primers (Upstream_Forward, Upstream_Reverse, Downstream_Forward, Downstream_Reverse) with optimized Tm and overlap.
+- replace_sequence: Inserts the deletion arms into the vector sequence at the specified position.
+- modify_genbank: Updates the GenBank file with the new sequence and annotations.
