@@ -62,22 +62,19 @@ Just provide a GenBank accession and a vector `.dna` file. Genome download, BSge
 library(PrimerDesigner)
 
 # Single call does everything — includes auto BSgenome/Bowtie build
+# All files are saved to the current working directory by default
 result <- design_grna_and_deletion(
   genbank_accession    = "GCF_030376765.1",
   locus_tags           = c("QT235_RS00005", "QT235_RS00010"),
   nuclease             = "GeoCas9",
   grna_vector_file     = "~/vectors/pG1Kt-GeoCas9EF.dna",
-  grna_start           = 7823,
-  grna_end             = 7850,
-  deletion_start = 3977,
-  deletion_end   = 3987,
-  upstream_bp = 500,
-  downstream_bp = 500,
-  grna_cloning_method = "gibson",
-  methylation_patterns = c("GCCAT","TACNNNNNNCTC","RTAYNNNNNCTC","GAGNNNNNNNTGG"),
-  output_file          = "~/crispr_project/all_primers.xlsx",
-  output_dir           = "~/crispr_project/constructs",
-  dir                  = "~/crispr_project"
+  grna_start           = 8811,
+  grna_end             = 8840,
+  grna_cloning_method  = "golden_gate",
+  grna_enzyme          = "BbsI",
+  methylation_patterns = c("GCCAT", "CCANNNNNTTG"),
+  output_file          = "all_primers.xlsx",
+  output_dir           = "constructs"
 )
 
 # Access results
@@ -274,8 +271,7 @@ result <- design_grna_and_deletion(
   grna_cloning_method = "golden_gate",
   grna_enzyme         = "BbsI",
   output_file         = "primers.xlsx",
-  output_dir          = "constructs/",
-  dir                 = "~/crispr_project"
+  output_dir          = "constructs/"
 )
 ```
 
@@ -293,8 +289,7 @@ result <- design_grna_and_deletion(
   grna_cloning_method = "gibson",
   tm_target           = 60,
   output_file         = "primers.xlsx",
-  output_dir          = "constructs/",
-  dir                 = "~/crispr_project"
+  output_dir          = "constructs/"
 )
 ```
 
@@ -333,6 +328,22 @@ Open `.gbk` files in SnapGene to visually inspect spacer, homology arms, and pri
 
 ---
 
+## Troubleshooting
+
+**UCSC seqlengths warning on first run**
+
+When building a BSgenome for non-model organisms, you may see warnings like:
+
+```
+Error in evaluating the argument 'x' in selecting a method for function 'seqlengths':
+  UCSC library operation failed
+BSgenome getSeq validation: FAILED -- will rebuild
+```
+
+This is **expected and harmless**. Non-UCSC genomes (i.e., most non-model organisms) do not have UCSC-style chromosome naming, so the initial seqlengths validation fails. PrimerDesigner automatically detects this and rebuilds the BSgenome package, which then works correctly. You can safely ignore this warning.
+
+---
+
 ## Citation
 
 If you use PrimerDesigner in your research, please cite:
@@ -340,11 +351,11 @@ If you use PrimerDesigner in your research, please cite:
 ```
 Sung, J.-Y. (2025). PrimerDesigner: End-to-end CRISPR primer design pipeline
 for non-model organisms. R package version 1.0.0.
-https://github.com/your-username/PrimerDesigner
+https://github.com/JAEYOONSUNG/PrimerDesigner
 ```
 
 ---
 
 ## License
 
-MIT © [Jae-Yoon Sung](https://github.com/your-username)
+MIT © [Jae-Yoon Sung](https://github.com/JAEYOONSUNG)
