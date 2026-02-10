@@ -43,7 +43,7 @@ BiocManager::install(c(
 ))
 
 # 2. Install from GitHub
-devtools::install_github("your-username/PrimerDesigner")
+devtools::install_github("JAEYOONSUNG/PrimerDesigner")
 ```
 
 **Python dependency** (for SnapGene `.dna` files):
