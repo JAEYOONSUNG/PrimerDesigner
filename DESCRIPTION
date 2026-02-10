@@ -1,0 +1,53 @@
+Package: PrimerDesigner
+Title: CRISPR Primer Design Pipeline for Non-Model Organisms
+Version: 1.0.0
+Authors@R: 
+    person("Jae-Yoon", "Sung", email = "o3wodbs@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-2475-8743"))
+Description: End-to-end CRISPR primer design pipeline for non-model organisms. Automates BSgenome package building for any NCBI genome, Bowtie index creation, genome-wide gRNA library generation with composite scoring and off-target analysis via CrisprVerse, and cloning primer design (Golden Gate, Gibson Assembly). Includes unified gRNA + deletion arm pipeline with 4-primer Gibson design for homologous recombination knockouts, combined all-in-one construct GenBank output for SnapGene visualization, methylation site filtering, and Tm-optimized primer generation. Works with any organism that has a GenBank accession.
+License: MIT
+Encoding: UTF-8
+Depends:
+    R (>= 4.0.0),
+    crisprVerse,
+    crisprBase,
+    crisprDesign,
+    crisprBowtie
+Imports:
+    TmCalculator,
+    GenomicFeatures,
+    GenomeInfoDb,
+    Biostrings,
+    BSgenome,
+    Rsamtools,
+    rtracklayer,
+    Rbowtie,
+    methods,
+    dplyr,
+    GenomicRanges,
+    writexl,
+    glue,
+    readxl,
+    openxlsx,
+    data.table,
+    tidyr,
+    stringr,
+    gtools,
+    magrittr,
+    rentrez,
+    reshape2,
+    tibble,
+    ggplot2,
+    pheatmap,
+    scico,
+    tibbletime,
+    colorspace,
+    RColorBrewer,
+    reticulate
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Suggests:
+    testthat (>= 3.0.0),
+    devtools,
+    BiocManager
+Config/testthat/edition: 3
