@@ -6,7 +6,7 @@
 
 End-to-end CRISPR primer design pipeline for non-model organisms.
 
-GenBank accession과 벡터 `.dna` 파일만 넣으면 BSgenome 구축, Bowtie 인덱스 생성, gRNA 라이브러리, off-target 분석, Golden Gate / Gibson 클로닝 프라이머 설계, deletion arm 프라이머, SnapGene용 GenBank 출력까지 **한 함수 호출로** 전부 처리합니다.
+Just provide a GenBank accession and a vector `.dna` file — BSgenome building, Bowtie indexing, gRNA library generation, off-target analysis, Golden Gate / Gibson cloning primer design, deletion arm primers, and SnapGene-compatible GenBank output are all handled **in a single function call**.
 
 ---
 
@@ -56,12 +56,12 @@ pip install snapgene_reader
 
 ## Quick Start
 
-GenBank accession + 벡터 `.dna` 파일만 주면 됩니다. 게놈 다운로드, BSgenome 패키지 빌드, Bowtie 인덱스 생성은 모두 자동으로 처리됩니다.
+Just provide a GenBank accession and a vector `.dna` file. Genome download, BSgenome package build, and Bowtie index creation are all handled automatically.
 
 ```r
 library(PrimerDesigner)
 
-# 이것만 호출하면 끝 — BSgenome/Bowtie 자동 빌드 포함
+# Single call does everything — includes auto BSgenome/Bowtie build
 result <- design_grna_and_deletion(
   genbank_accession    = "GCF_030376765.1",
   locus_tags           = c("QT235_RS00005", "QT235_RS00010"),
@@ -77,22 +77,22 @@ result <- design_grna_and_deletion(
   dir                  = "~/crispr_project"
 )
 
-# 결과 확인
+# Access results
 result$grna_primers      # gRNA cloning primers (2 per gRNA)
 result$deletion_primers  # deletion arm primers (4 per locus_tag)
-result$unified_primers   # 모든 프라이머 통합 long-format table
+result$unified_primers   # all primers in unified long-format table
 ```
 
-**첫 실행 시 자동으로 수행되는 작업:**
-1. NCBI에서 `.fna` / `.gbff` 다운로드 (없으면)
-2. BSgenome 패키지 빌드 + 로드
-3. Bowtie 인덱스 빌드
-4. gRNA 라이브러리 생성 + off-target 분석
-5. 최적 gRNA 선별 + 클로닝 프라이머 설계
-6. Deletion arm 프라이머 설계
-7. Excel + GenBank 출력
+**What happens automatically on first run:**
+1. Download `.fna` / `.gbff` from NCBI (if not present)
+2. Build + load BSgenome package
+3. Build Bowtie index
+4. Generate gRNA library + off-target analysis
+5. Select best gRNA(s) + design cloning primers
+6. Design deletion arm primers
+7. Export Excel + GenBank output
 
-두 번째 실행부터는 이미 빌드된 BSgenome/Bowtie를 재사용합니다.
+On subsequent runs, pre-built BSgenome/Bowtie are reused automatically.
 
 ---
 
@@ -102,7 +102,7 @@ result$unified_primers   # 모든 프라이머 통합 long-format table
                     design_grna_and_deletion()
                               │
          ┌────────────────────┼────────────────────┐
-         │         자동 실행 (내부 호출)              │
+         │      All steps run automatically         │
          │                    │                     │
          ▼                    ▼                     ▼
   ┌──────────────┐  ┌─────────────────┐  ┌────────────────┐
@@ -119,36 +119,36 @@ result$unified_primers   # 모든 프라이머 통합 long-format table
                                          └────────────────┘
 ```
 
-**내부 호출 체인:**
+**Internal call chain:**
 
 ```
 design_grna_and_deletion()
   └─ design_grna_construct()
        └─ run_gRNA_list_generator()
-            ├─ download_genbank_fna()       # .fna 없으면 자동 다운로드
-            ├─ download_genbank_gbff()      # .gbff 없으면 자동 다운로드
-            ├─ run_bowtie_build()           # Bowtie 인덱스 없으면 자동 빌드
-            ├─ build_bsgenome_from_accession()  # BSgenome 없으면 자동 빌드
+            ├─ download_genbank_fna()       # auto-download if missing
+            ├─ download_genbank_gbff()      # auto-download if missing
+            ├─ run_bowtie_build()           # auto-build if missing
+            ├─ build_bsgenome_from_accession()  # auto-build if missing
             └─ findSpacers + off-target + scoring
   └─ design_deletion_primers()              # 4-primer Gibson deletion arms
-  └─ write_combined_construct_genbank()     # SnapGene용 GenBank 출력
+  └─ write_combined_construct_genbank()     # SnapGene-compatible GenBank output
 ```
 
 ---
 
 ## Golden Gate Oligo Annealing — Vector-Based Overhang Detection
 
-PrimerDesigner는 하드코딩된 overhang 대신, 실제 벡터 서열에서 제한효소 인식서열을 찾아 올리고 어닐링 프라이머를 설계합니다.
+Instead of using hardcoded overhangs, PrimerDesigner scans the actual vector sequence to locate Type IIS enzyme recognition sites and designs oligo annealing primers with real overhangs and fill sequences.
 
 ### How it works
 
-1. 벡터 파일 (`.dna` / `.gb`) 로드 → stuffer 양쪽 ±20bp 영역 스캔
-2. **양쪽 strand** 모두 검색 → stuffer 방향으로 자르는 올바른 site만 사용 (잘못된 방향은 warning)
-3. 컷패턴 `(a/b)` 에 따라 overhang 타입 자동 판별:
-   - `a < b` (예: BbsI 2/6) → **5' overhang**, 길이 = b - a
-   - `a > b` (가상 6/2) → **3' overhang**, 길이 = a - b, 올리고 구조 자동 조정
-   - `a == b` → blunt end → Golden Gate 사용 불가 (warning)
-4. Enzyme cut 과 stuffer 사이 **fill 서열** 자동 포함
+1. Load vector file (`.dna` / `.gb`) → scan ±20bp flanking regions around the stuffer
+2. Search **both strands** → use only sites that cut toward the stuffer (warns on wrong-orientation sites)
+3. Automatically determine overhang type from cut pattern `(a/b)`:
+   - `a < b` (e.g. BbsI 2/6) → **5' overhang**, length = b - a
+   - `a > b` (hypothetical 6/2) → **3' overhang**, length = a - b, oligo structure auto-adjusted
+   - `a == b` → blunt end → incompatible with Golden Gate (warning)
+4. Automatically include **fill sequences** between enzyme cut site and stuffer boundary
 
 ### Supported Type IIS Enzymes
 
@@ -205,42 +205,42 @@ Custom nucleases can be added via `crisprBase::CrisprNuclease()`.
 
 ## Key Functions
 
-### Main Pipeline (이것만 쓰면 됩니다)
+### Main Pipeline
 
 | Function | Description |
 |----------|-------------|
-| `design_grna_and_deletion()` | **Full pipeline**: accession → BSgenome → gRNA → cloning primers → deletion arms → Excel → GenBank. 모든 단계 자동 실행 |
+| `design_grna_and_deletion()` | **Full pipeline**: accession → BSgenome → gRNA → cloning primers → deletion arms → Excel → GenBank. All steps automated |
 
-### Step-by-Step (필요 시 개별 호출)
+### Step-by-Step (call individually if needed)
 
 | Function | Description |
 |----------|-------------|
-| `design_grna_construct()` | gRNA 선별 + cloning primer만 (deletion 제외) |
-| `run_gRNA_list_generator()` | gRNA 라이브러리만 (BSgenome/Bowtie 자동 빌드 포함) |
-| `design_cloning_primers()` | Golden Gate (OA) / Gibson (IA) primer만 |
-| `design_deletion_primers()` | 4-primer deletion arm (single gene) |
+| `design_grna_construct()` | gRNA selection + cloning primers only (no deletion) |
+| `run_gRNA_list_generator()` | gRNA library only (includes auto BSgenome/Bowtie build) |
+| `design_cloning_primers()` | Golden Gate (OA) / Gibson (IA) primers only |
+| `design_deletion_primers()` | 4-primer deletion arm design (single gene) |
 | `batch_deletion_primers()` | Multi-gene deletion primer batch |
 
 ### gRNA Library Utilities
 
 | Function | Description |
 |----------|-------------|
-| `generate_gRNA_for_sequence()` | DNA 서열 문자열에서 gRNA 생성 |
-| `generate_gRNA_for_locus_tags()` | Locus tag 기반 gRNA 생성 |
-| `build_gRNA_library()` | gRNA 라이브러리 구축 (scoring + merge) |
-| `calculate_composite_score()` | 가중 점수 계산: GC%, Tm, position, off-target |
-| `generate_gRNA_names()` | 표준화된 gRNA 이름 생성 (e.g. `Geo_dnaA_g1`) |
-| `filter_methylation_sites()` | IUPAC methylation motif 필터링 |
-| `nuclease_with_parameter()` | Nuclease 객체 + PAM/spacer 파라미터 반환 |
+| `generate_gRNA_for_sequence()` | Generate gRNAs from a DNA sequence string |
+| `generate_gRNA_for_locus_tags()` | Generate gRNAs for specific locus tags |
+| `build_gRNA_library()` | Build gRNA library (scoring + GenBank merge) |
+| `calculate_composite_score()` | Weighted scoring: GC%, Tm, position, off-target |
+| `generate_gRNA_names()` | Standardized gRNA naming (e.g. `Geo_dnaA_g1`) |
+| `filter_methylation_sites()` | IUPAC methylation motif filtering |
+| `nuclease_with_parameter()` | Return nuclease object + PAM/spacer parameters |
 
-### Genome Setup (자동 호출됨 — 수동 호출 불필요)
+### Genome Setup (called automatically — no manual call needed)
 
 | Function | Description |
 |----------|-------------|
-| `build_bsgenome_from_accession()` | BSgenome 빌드 (내부에서 자동 호출, UCSC validation 우회) |
-| `run_bowtie_build()` | Bowtie 인덱스 빌드 (내부에서 자동 호출) |
-| `download_genbank_fna()` | .fna 다운로드 (내부에서 자동 호출) |
-| `download_genbank_gbff()` | .gbff 다운로드 (내부에서 자동 호출) |
+| `build_bsgenome_from_accession()` | Build BSgenome (auto-called internally, bypasses UCSC validation) |
+| `run_bowtie_build()` | Build Bowtie index (auto-called internally) |
+| `download_genbank_fna()` | Download .fna (auto-called internally) |
+| `download_genbank_gbff()` | Download .gbff (auto-called internally) |
 | `forge_BSgenome()` | Low-level BSgenome package builder |
 
 ### File I/O
@@ -259,7 +259,7 @@ Custom nucleases can be added via `crisprBase::CrisprNuclease()`.
 
 ### Golden Gate (Oligo Annealing)
 
-두 올리고를 어닐링하여 Type IIS 제한효소가 만든 sticky end에 직접 ligation. 벡터 파일 제공 시 실제 컷 패턴 기반으로 overhang + fill 서열 자동 계산.
+Anneals two oligos and ligates directly into the sticky ends created by Type IIS restriction enzyme digestion. When a vector file is provided, overhangs and fill sequences are automatically computed from the actual cut pattern.
 
 ```r
 result <- design_grna_and_deletion(
@@ -278,7 +278,7 @@ result <- design_grna_and_deletion(
 
 ### Gibson Assembly (Inverse PCR)
 
-Tm 최적화된 overlap 프라이머로 벡터를 PCR 증폭하여 spacer 삽입.
+Inserts the spacer via inverse PCR amplification of the vector using Tm-optimized overlap primers.
 
 ```r
 result <- design_grna_and_deletion(
@@ -297,7 +297,7 @@ result <- design_grna_and_deletion(
 
 ### Deletion (4-Primer Gibson)
 
-유전자 상하류 homology arm을 Gibson Assembly로 벡터에 클로닝. Circular genome 지원. `design_grna_and_deletion()`에서 자동으로 포함됩니다.
+Clones upstream/downstream homology arms into the vector via Gibson Assembly. Supports circular genomes. Automatically included in `design_grna_and_deletion()`.
 
 ---
 
@@ -314,7 +314,7 @@ output_dir/
 └── .grna_primers_cache.rds                   # Resume cache (auto-generated)
 ```
 
-GenBank 파일은 SnapGene에서 열어 spacer, homology arm, primer binding site를 시각적으로 확인할 수 있습니다.
+Open `.gbk` files in SnapGene to visually inspect spacer, homology arms, and primer binding sites.
 
 ---
 
