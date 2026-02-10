@@ -64,15 +64,18 @@ library(PrimerDesigner)
 # Single call does everything — includes auto BSgenome/Bowtie build
 # All files are saved to the current working directory by default
 result <- design_grna_and_deletion(
-  genbank_accession    = "GCF_030376765.1",
-  locus_tags           = c("QT235_RS00005", "QT235_RS00010"),
+  genbank_accession    = "GCF_030376765.1", # NCBI accession or local .gbff/.gb/.gbk file path
+  locus_tags           = c("QT235_RS00005", "QT235_RS00010"), # single, multiple, or "all"
   nuclease             = "GeoCas9",
   grna_vector_file     = "~/vectors/pG1Kt-GeoCas9EF.dna",
-  grna_start           = 8811,
-  grna_end             = 8840,
-  grna_cloning_method  = "golden_gate",
-  grna_enzyme          = "BbsI",
-  methylation_patterns = c("GCCAT", "CCANNNNNTTG"),
+  grna_start           = 7823,
+  grna_end             = 7850,
+  deletion_start = 3977,
+  deletion_end   = 3987,
+  grna_cloning_method = "gibson",
+  upstream_bp = 500, 
+  downstream_bp = 500,
+  methylation_patterns = c("GCCAT","TACNNNNNNCTC","RTAYNNNNNCTC","GAGNNNNNNNTGG"),
   output_file          = "all_primers.xlsx",
   output_dir           = "constructs"
 )
@@ -82,6 +85,10 @@ result$grna_primers      # gRNA cloning primers (2 per gRNA)
 result$deletion_primers  # deletion arm primers (4 per locus_tag)
 result$unified_primers   # all primers in unified long-format table
 ```
+
+> **`genbank_accession`** — accepts an NCBI accession (e.g. `"GCF_030376765.1"`, auto-downloads) or a local GenBank file path (e.g. `"~/genomes/my_genome.gbff"`). Local `.gbff` / `.gb` / `.gbk` files are auto-detected; FASTA is extracted internally and multi-contig genomes are fully supported.
+>
+> **`locus_tags`** — `"QT235_RS00005"` for a single gene, `c("QT235_RS00005", "QT235_RS00010")` for multiple genes, or `"all"` to run genome-wide gRNA + deletion primer design for every CDS.
 
 **What happens automatically on first run:**
 1. Download `.fna` / `.gbff` from NCBI (if not present)
@@ -101,22 +108,22 @@ On subsequent runs, pre-built BSgenome/Bowtie are reused automatically.
 ```
                     design_grna_and_deletion()
                               │
-         ┌────────────────────┼────────────────────┐
+         ┌────────────────────┼────────────────────-┐
          │      All steps run automatically         │
          │                    │                     │
          ▼                    ▼                     ▼
-  ┌──────────────┐  ┌─────────────────┐  ┌────────────────┐
-  │ Genome Setup │  │ gRNA Library    │  │ Primer Design  │
-  │ (auto-build) │  │                 │  │                │
-  ├──────────────┤  ├─────────────────┤  ├────────────────┤
-  │ .fna download│  │ findSpacers     │  │ gRNA cloning   │
-  │ .gbff download│ │ Off-target n0/n1│  │  ├─ Golden Gate│
-  │ BSgenome build│ │ Composite score │  │  └─ Gibson     │
-  │ Bowtie index │  │ Methylation     │  │ Deletion arms  │
-  └──────────────┘  │ filtering       │  │ (4-primer)     │
+  ┌──────────────┐  ┌─────────────────┐  ┌───────────────-─┐
+  │ Genome Setup │  │ gRNA Library    │  │ Primer Design   │
+  │ (auto-build) │  │                 │  │                 │
+  ├──────────────┤  ├─────────────────┤  ├────────────────-┤
+  │ .fna download│  │ findSpacers     │  │ gRNA cloning    │
+  │ .gbff download│ │ Off-target n0/n1│  │  ├─ Golden Gate │
+  │ BSgenome build│ │ Composite score │  │  └─ Gibson      │
+  │ Bowtie index │  │ Methylation     │  │ Deletion arms   │
+  └──────────────┘  │ filtering       │  │ (4-primer)      │
                     └─────────────────┘  │ Combined GenBank│
-                                         │ Excel output   │
-                                         └────────────────┘
+                                         │ Excel output    │
+                                         └───────────────-─┘
 ```
 
 **Internal call chain:**
