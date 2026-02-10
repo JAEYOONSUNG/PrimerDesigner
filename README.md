@@ -112,18 +112,18 @@ On subsequent runs, pre-built BSgenome/Bowtie are reused automatically.
          │      All steps run automatically         │
          │                    │                     │
          ▼                    ▼                     ▼
-  ┌──────────────┐  ┌─────────────────┐  ┌───────────────-─┐
-  │ Genome Setup │  │ gRNA Library    │  │ Primer Design   │
-  │ (auto-build) │  │                 │  │                 │
-  ├──────────────┤  ├─────────────────┤  ├────────────────-┤
-  │ .fna download│  │ findSpacers     │  │ gRNA cloning    │
-  │ .gbff download│ │ Off-target n0/n1│  │  ├─ Golden Gate │
-  │ BSgenome build│ │ Composite score │  │  └─ Gibson      │
-  │ Bowtie index │  │ Methylation     │  │ Deletion arms   │
-  └──────────────┘  │ filtering       │  │ (4-primer)      │
-                    └─────────────────┘  │ Combined GenBank│
-                                         │ Excel output    │
-                                         └───────────────-─┘
+  ┌──────────────-┐  ┌─────────────────┐  ┌───────────────-─┐
+  │ Genome Setup  │  │ gRNA Library    │  │ Primer Design   │
+  │ (auto-build)  │  │                 │  │                 │
+  ├──────────────-┤  ├─────────────────┤  ├────────────────-┤
+  │ .fna download │  │ findSpacers     │  │ gRNA cloning    │
+  │ .gbff download│  │ Off-target n0/n1│  │  ├─ Golden Gate │
+  │ BSgenome build│  │ Composite score │  │  └─ Gibson      │
+  │ Bowtie index  │  │ Methylation     │  │ Deletion arms   │
+  └──────────────-┘  │ filtering       │  │ (4-primer)      │
+                     └─────────────────┘  │ Combined GenBank│
+                                          │ Excel output    │
+                                          └───────────────-─┘
 ```
 
 **Internal call chain:**
