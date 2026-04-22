@@ -1124,18 +1124,17 @@ design_grna_and_deletion <- function(
   dn_arm_start <- up_arm_end + 1
 
   # --- Step 7: gRNA spacer annotation ---
-  spacer_label <- base::ifelse(base::nchar(locus_tag) > 0, locus_tag,
-                  base::ifelse(base::nchar(gRNA_name) > 0, gRNA_name, "gRNA_spacer"))
+  spacer_label <- base::sprintf("gRNA %d-%d", spacer_final_start, spacer_final_end)
   new_features <- base::c(
     "",
     base::sprintf("     misc_feature    %d..%d", spacer_final_start, spacer_final_end),
     base::sprintf("                     /label=%s", spacer_label)
   )
-  if (base::nchar(locus_tag) > 0) {
+  if (!base::is.null(locus_tag) && !base::is.na(locus_tag) && base::nchar(locus_tag) > 0) {
     new_features <- base::c(new_features,
       base::sprintf("                     /locus_tag=%s", locus_tag))
   }
-  if (base::nchar(gene) > 0) {
+  if (!base::is.null(gene) && !base::is.na(gene) && base::nchar(gene) > 0) {
     new_features <- base::c(new_features,
       base::sprintf("                     /gene=%s", gene))
   }
@@ -1144,7 +1143,8 @@ design_grna_and_deletion <- function(
       base::sprintf("                     /note=nuclease: %s", nuclease))
   }
   new_features <- base::c(new_features,
-    base::sprintf("                     /note=spacer: %s (%d bp)", spacer_seq, spacer_len))
+    base::sprintf("                     /note=spacer: %s (%d bp)", spacer_seq, spacer_len),
+    base::sprintf("                     /note=positions: %d..%d", spacer_final_start, spacer_final_end))
   if (base::nchar(gRNA_name) > 0) {
     new_features <- base::c(new_features,
       base::sprintf("                     /note=gRNA_name: %s", gRNA_name))
@@ -1154,12 +1154,14 @@ design_grna_and_deletion <- function(
   new_features <- base::c(new_features,
     "",
     base::sprintf("     misc_feature    %d..%d", arms_final_start, up_arm_end),
-    base::sprintf("                     /label=%s_upstream_arm", locus_tag),
+    base::sprintf("                     /label=UP %d-%d", arms_final_start, up_arm_end),
     base::sprintf("                     /note=upstream homology arm (%d bp)", upstream_bp),
+    base::sprintf("                     /note=positions: %d..%d", arms_final_start, up_arm_end),
     "",
     base::sprintf("     misc_feature    %d..%d", dn_arm_start, arms_final_end),
-    base::sprintf("                     /label=%s_downstream_arm", locus_tag),
-    base::sprintf("                     /note=downstream homology arm (%d bp)", downstream_bp)
+    base::sprintf("                     /label=DN %d-%d", dn_arm_start, arms_final_end),
+    base::sprintf("                     /note=downstream homology arm (%d bp)", downstream_bp),
+    base::sprintf("                     /note=positions: %d..%d", dn_arm_start, arms_final_end)
   )
 
   # --- Step 9: gRNA primer annotations ---
@@ -1193,11 +1195,13 @@ design_grna_and_deletion <- function(
       base::sprintf("                     /label=%s", f_label),
       base::sprintf("                     /note=seq: %s (%d bp)",
                      grna_primer_info$primer_F, base::nchar(grna_primer_info$primer_F)),
+      base::sprintf("                     /note=positions: %d..%d", f_start, f_end),
       "",
       base::sprintf("     primer          complement(%d..%d)", r_start, r_end),
       base::sprintf("                     /label=%s", r_label),
       base::sprintf("                     /note=seq: %s (%d bp)",
-                     grna_primer_info$primer_R, base::nchar(grna_primer_info$primer_R))
+                     grna_primer_info$primer_R, base::nchar(grna_primer_info$primer_R)),
+      base::sprintf("                     /note=positions: %d..%d", r_start, r_end)
     )
   }
 
@@ -1214,6 +1218,7 @@ design_grna_and_deletion <- function(
       base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
                      dp$upstream_forward_tm_target, dp$upstream_forward_tm_full),
       base::sprintf("                     /note=seq: %s", dp$upstream_forward_primer),
+      base::sprintf("                     /note=positions: %d..%d", dp$upstream_forward_start, dp$upstream_forward_end),
       "",
       base::sprintf("     primer          complement(%d..%d)",
                      dp$upstream_reverse_start, dp$upstream_reverse_end),
@@ -1221,6 +1226,7 @@ design_grna_and_deletion <- function(
       base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
                      dp$upstream_reverse_tm_target, dp$upstream_reverse_tm_full),
       base::sprintf("                     /note=seq: %s", dp$upstream_reverse_primer),
+      base::sprintf("                     /note=positions: %d..%d", dp$upstream_reverse_start, dp$upstream_reverse_end),
       "",
       base::sprintf("     primer          %d..%d",
                      dp$downstream_forward_start, dp$downstream_forward_end),
@@ -1228,13 +1234,15 @@ design_grna_and_deletion <- function(
       base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
                      dp$downstream_forward_tm_target, dp$downstream_forward_tm_full),
       base::sprintf("                     /note=seq: %s", dp$downstream_forward_primer),
+      base::sprintf("                     /note=positions: %d..%d", dp$downstream_forward_start, dp$downstream_forward_end),
       "",
       base::sprintf("     primer          complement(%d..%d)",
                      dp$downstream_reverse_start, dp$downstream_reverse_end),
       base::sprintf("                     /label=%s", dp$downstream_reverse_name),
       base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
                      dp$downstream_reverse_tm_target, dp$downstream_reverse_tm_full),
-      base::sprintf("                     /note=seq: %s", dp$downstream_reverse_primer)
+      base::sprintf("                     /note=seq: %s", dp$downstream_reverse_primer),
+      base::sprintf("                     /note=positions: %d..%d", dp$downstream_reverse_start, dp$downstream_reverse_end)
     )
   }
 

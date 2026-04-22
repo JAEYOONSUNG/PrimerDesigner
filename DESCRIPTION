@@ -43,7 +43,10 @@ Imports:
     tibbletime,
     colorspace,
     RColorBrewer,
-    reticulate
+    reticulate,
+    patchwork,
+    ggtext,
+    ggdendro
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Suggests:

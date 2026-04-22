@@ -883,6 +883,10 @@ design_deletion_primers <- function(
     max_target_length = 50,
     max_primer_length = 70,
     max_iterations = 100,
+    upstream_forward_target = NULL,
+    upstream_reverse_target = NULL,
+    downstream_forward_target = NULL,
+    downstream_reverse_target = NULL,
     locus_tag = NULL,
     genome_seq = NULL,
     genbank_table = NULL,
@@ -1017,6 +1021,18 @@ design_deletion_primers <- function(
   upstream_fwd_overlap_tm <- .safe_tm(upstream_vector_overlap)
   upstream_fwd_tm_full <- .safe_tm(upstream_fwd_primer)
 
+  if (!base::is.null(upstream_forward_target)) {
+    upstream_forward_target <- base::toupper(upstream_forward_target)
+    if (!base::startsWith(upstream_seq, upstream_forward_target)) {
+      base::stop("upstream_forward_target must match the start of upstream_seq.")
+    }
+    upstream_left <- upstream_forward_target
+    upstream_fwd_primer <- base::paste0(upstream_vector_overlap, upstream_left)
+    upstream_fwd_tm_target <- .safe_tm(upstream_left)
+    upstream_fwd_overlap_tm <- .safe_tm(upstream_vector_overlap)
+    upstream_fwd_tm_full <- .safe_tm(upstream_fwd_primer)
+  }
+
   best_upstream_fwd <- base::list(
     primer = upstream_fwd_primer,
     tm_target = upstream_fwd_tm_target,
@@ -1025,35 +1041,37 @@ design_deletion_primers <- function(
   )
 
   # Extend target region until Tm ≥ 55°C (max 25bp)
-  iteration <- 0
-  while (.na0(upstream_fwd_tm_target) < 55 && iteration < max_iterations) {
-    if (base::nchar(upstream_left) < 25) {
-      next_len <- base::nchar(upstream_left) + 1
-      if (next_len > base::nchar(upstream_seq)) break
-      upstream_left <- base::substring(upstream_seq, 1, next_len)
-      upstream_fwd_primer <- base::paste0(upstream_vector_overlap, upstream_left)
-      upstream_fwd_tm_target <- .safe_tm(upstream_left)
-      upstream_fwd_tm_full <- .safe_tm(upstream_fwd_primer)
-
-      # If overshooting > 60°C, trim back 1bp and stop
-      if (.na0(upstream_fwd_tm_target) > 60) {
-        upstream_left <- base::substring(upstream_left, 1, base::nchar(upstream_left) - 1)
+  if (base::is.null(upstream_forward_target)) {
+    iteration <- 0
+    while (.na0(upstream_fwd_tm_target) < 55 && iteration < max_iterations) {
+      if (base::nchar(upstream_left) < 25) {
+        next_len <- base::nchar(upstream_left) + 1
+        if (next_len > base::nchar(upstream_seq)) break
+        upstream_left <- base::substring(upstream_seq, 1, next_len)
         upstream_fwd_primer <- base::paste0(upstream_vector_overlap, upstream_left)
         upstream_fwd_tm_target <- .safe_tm(upstream_left)
         upstream_fwd_tm_full <- .safe_tm(upstream_fwd_primer)
-        break
-      }
 
-      if (!.check_self_dimerization(upstream_fwd_primer)) {
-        best_upstream_fwd <- base::list(
-          primer = upstream_fwd_primer,
-          tm_target = upstream_fwd_tm_target,
-          tm_full = upstream_fwd_tm_full,
-          diff = base::abs(.na0(upstream_fwd_tm_target) - tm_target)
-        )
+        # If overshooting > 60°C, trim back 1bp and stop
+        if (.na0(upstream_fwd_tm_target) > 60) {
+          upstream_left <- base::substring(upstream_left, 1, base::nchar(upstream_left) - 1)
+          upstream_fwd_primer <- base::paste0(upstream_vector_overlap, upstream_left)
+          upstream_fwd_tm_target <- .safe_tm(upstream_left)
+          upstream_fwd_tm_full <- .safe_tm(upstream_fwd_primer)
+          break
+        }
+
+        if (!.check_self_dimerization(upstream_fwd_primer)) {
+          best_upstream_fwd <- base::list(
+            primer = upstream_fwd_primer,
+            tm_target = upstream_fwd_tm_target,
+            tm_full = upstream_fwd_tm_full,
+            diff = base::abs(.na0(upstream_fwd_tm_target) - tm_target)
+          )
+        }
       }
+      iteration <- iteration + 1
     }
-    iteration <- iteration + 1
   }
 
   # Extend vector overlap if overlap Tm < 55°C (up to 20bp)
@@ -1089,6 +1107,19 @@ design_deletion_primers <- function(
   downstream_rev_overlap_tm <- .safe_tm(downstream_vector_overlap)
   downstream_rev_tm_full <- .safe_tm(downstream_rev_primer)
 
+  if (!base::is.null(downstream_reverse_target)) {
+    downstream_reverse_target <- base::toupper(downstream_reverse_target)
+    if (!base::endsWith(downstream_seq, downstream_reverse_target)) {
+      base::stop("downstream_reverse_target must match the end of downstream_seq.")
+    }
+    downstream_right <- downstream_reverse_target
+    downstream_rev_primer <- .rc(base::paste0(downstream_right, downstream_vector_overlap))
+    downstream_rev_target <- .rc(downstream_right)
+    downstream_rev_tm_target <- .safe_tm(downstream_rev_target)
+    downstream_rev_overlap_tm <- .safe_tm(downstream_vector_overlap)
+    downstream_rev_tm_full <- .safe_tm(downstream_rev_primer)
+  }
+
   best_downstream_rev <- base::list(
     primer = downstream_rev_primer,
     tm_target = downstream_rev_tm_target,
@@ -1097,37 +1128,39 @@ design_deletion_primers <- function(
   )
 
   # Extend target region until Tm ≥ 55°C (max 25bp)
-  iteration <- 0
-  while (.na0(downstream_rev_tm_target) < 55 && iteration < max_iterations) {
-    if (base::nchar(downstream_right) < 25) {
-      new_start <- base::nchar(downstream_seq) - base::nchar(downstream_right)
-      if (new_start < 1) break
-      downstream_right <- base::substring(downstream_seq, new_start, base::nchar(downstream_seq))
-      downstream_rev_primer <- .rc(base::paste0(downstream_right, downstream_vector_overlap))
-      downstream_rev_target <- .rc(downstream_right)
-      downstream_rev_tm_target <- .safe_tm(downstream_rev_target)
-      downstream_rev_tm_full <- .safe_tm(downstream_rev_primer)
-
-      # If overshooting > 60°C, trim 1bp from front and stop
-      if (.na0(downstream_rev_tm_target) > 60) {
-        downstream_right <- base::substring(downstream_right, 2, base::nchar(downstream_right))
+  if (base::is.null(downstream_reverse_target)) {
+    iteration <- 0
+    while (.na0(downstream_rev_tm_target) < 55 && iteration < max_iterations) {
+      if (base::nchar(downstream_right) < 25) {
+        new_start <- base::nchar(downstream_seq) - base::nchar(downstream_right)
+        if (new_start < 1) break
+        downstream_right <- base::substring(downstream_seq, new_start, base::nchar(downstream_seq))
         downstream_rev_primer <- .rc(base::paste0(downstream_right, downstream_vector_overlap))
         downstream_rev_target <- .rc(downstream_right)
         downstream_rev_tm_target <- .safe_tm(downstream_rev_target)
         downstream_rev_tm_full <- .safe_tm(downstream_rev_primer)
-        break
-      }
 
-      if (!.check_self_dimerization(downstream_rev_primer)) {
-        best_downstream_rev <- base::list(
-          primer = downstream_rev_primer,
-          tm_target = downstream_rev_tm_target,
-          tm_full = downstream_rev_tm_full,
-          diff = base::abs(.na0(downstream_rev_tm_target) - tm_target)
-        )
+        # If overshooting > 60°C, trim 1bp from front and stop
+        if (.na0(downstream_rev_tm_target) > 60) {
+          downstream_right <- base::substring(downstream_right, 2, base::nchar(downstream_right))
+          downstream_rev_primer <- .rc(base::paste0(downstream_right, downstream_vector_overlap))
+          downstream_rev_target <- .rc(downstream_right)
+          downstream_rev_tm_target <- .safe_tm(downstream_rev_target)
+          downstream_rev_tm_full <- .safe_tm(downstream_rev_primer)
+          break
+        }
+
+        if (!.check_self_dimerization(downstream_rev_primer)) {
+          best_downstream_rev <- base::list(
+            primer = downstream_rev_primer,
+            tm_target = downstream_rev_tm_target,
+            tm_full = downstream_rev_tm_full,
+            diff = base::abs(.na0(downstream_rev_tm_target) - tm_target)
+          )
+        }
       }
+      iteration <- iteration + 1
     }
-    iteration <- iteration + 1
   }
 
   # Extend vector overlap if overlap Tm < 55°C (up to 20bp)
@@ -1166,40 +1199,53 @@ design_deletion_primers <- function(
   best_ur_target <- upstream_right_inner
   best_ur_tm <- ur_tm
 
-  iteration <- 0
-  while (iteration < max_iterations) {
-    if (base::is.na(ur_tm)) break
-    if (ur_tm >= target_tm_min && base::abs(ur_tm - target_tm_optimal) <= 1) break
+  if (!base::is.null(upstream_reverse_target)) {
+    upstream_reverse_target <- base::toupper(upstream_reverse_target)
+    if (!base::endsWith(upstream_seq, upstream_reverse_target)) {
+      base::stop("upstream_reverse_target must match the end of upstream_seq.")
+    }
+    upstream_right_inner <- upstream_reverse_target
+    ur_tm <- .safe_tm(.rc(upstream_right_inner))
+    best_ur_target <- upstream_right_inner
+    best_ur_tm <- ur_tm
+  }
 
-    if (base::nchar(upstream_right_inner) >= max_target_length) break
+  if (base::is.null(upstream_reverse_target)) {
+    iteration <- 0
+    while (iteration < max_iterations) {
+      if (base::is.na(ur_tm)) break
+      if (ur_tm >= target_tm_min && base::abs(ur_tm - target_tm_optimal) <= 1) break
 
-    if (ur_tm < target_tm_min) {
-      # Extend left (add 1bp from upstream_seq)
-      new_start <- base::nchar(upstream_seq) - base::nchar(upstream_right_inner)
-      if (new_start < 1) break
-      upstream_right_inner <- base::substring(upstream_seq, new_start, base::nchar(upstream_seq))
-    } else if (ur_tm > target_tm_max) {
-      # Trim from left
-      upstream_right_inner <- base::substring(upstream_right_inner, 2, base::nchar(upstream_right_inner))
-    } else {
-      # Within range but not optimal — fine-tune
-      if (ur_tm < target_tm_optimal && base::nchar(upstream_right_inner) < max_target_length) {
+      if (base::nchar(upstream_right_inner) >= max_target_length) break
+
+      if (ur_tm < target_tm_min) {
+        # Extend left (add 1bp from upstream_seq)
         new_start <- base::nchar(upstream_seq) - base::nchar(upstream_right_inner)
         if (new_start < 1) break
         upstream_right_inner <- base::substring(upstream_seq, new_start, base::nchar(upstream_seq))
-      } else if (ur_tm > target_tm_optimal && base::nchar(upstream_right_inner) > min_target_length) {
+      } else if (ur_tm > target_tm_max) {
+        # Trim from left
         upstream_right_inner <- base::substring(upstream_right_inner, 2, base::nchar(upstream_right_inner))
       } else {
-        break
+        # Within range but not optimal — fine-tune
+        if (ur_tm < target_tm_optimal && base::nchar(upstream_right_inner) < max_target_length) {
+          new_start <- base::nchar(upstream_seq) - base::nchar(upstream_right_inner)
+          if (new_start < 1) break
+          upstream_right_inner <- base::substring(upstream_seq, new_start, base::nchar(upstream_seq))
+        } else if (ur_tm > target_tm_optimal && base::nchar(upstream_right_inner) > min_target_length) {
+          upstream_right_inner <- base::substring(upstream_right_inner, 2, base::nchar(upstream_right_inner))
+        } else {
+          break
+        }
       }
-    }
 
-    ur_tm <- .safe_tm(.rc(upstream_right_inner))
-    if (!base::is.na(ur_tm) && ur_tm >= target_tm_min && ur_tm <= target_tm_max) {
-      best_ur_target <- upstream_right_inner
-      best_ur_tm <- ur_tm
+      ur_tm <- .safe_tm(.rc(upstream_right_inner))
+      if (!base::is.na(ur_tm) && ur_tm >= target_tm_min && ur_tm <= target_tm_max) {
+        best_ur_target <- upstream_right_inner
+        best_ur_tm <- ur_tm
+      }
+      iteration <- iteration + 1
     }
-    iteration <- iteration + 1
   }
 
   # ===========================================================
@@ -1211,40 +1257,53 @@ design_deletion_primers <- function(
   best_df_target <- downstream_left_inner
   best_df_tm <- df_tm
 
-  iteration <- 0
-  while (iteration < max_iterations) {
-    if (base::is.na(df_tm)) break
-    if (df_tm >= target_tm_min && base::abs(df_tm - target_tm_optimal) <= 1) break
+  if (!base::is.null(downstream_forward_target)) {
+    downstream_forward_target <- base::toupper(downstream_forward_target)
+    if (!base::startsWith(downstream_seq, downstream_forward_target)) {
+      base::stop("downstream_forward_target must match the start of downstream_seq.")
+    }
+    downstream_left_inner <- downstream_forward_target
+    df_tm <- .safe_tm(downstream_left_inner)
+    best_df_target <- downstream_left_inner
+    best_df_tm <- df_tm
+  }
 
-    if (base::nchar(downstream_left_inner) >= max_target_length) break
+  if (base::is.null(downstream_forward_target)) {
+    iteration <- 0
+    while (iteration < max_iterations) {
+      if (base::is.na(df_tm)) break
+      if (df_tm >= target_tm_min && base::abs(df_tm - target_tm_optimal) <= 1) break
 
-    if (df_tm < target_tm_min) {
-      # Extend right
-      next_len <- base::nchar(downstream_left_inner) + 1
-      if (next_len > base::nchar(downstream_seq)) break
-      downstream_left_inner <- base::substring(downstream_seq, 1, next_len)
-    } else if (df_tm > target_tm_max) {
-      # Trim from right
-      downstream_left_inner <- base::substring(downstream_left_inner, 1, base::nchar(downstream_left_inner) - 1)
-    } else {
-      # Within range but not optimal — fine-tune
-      if (df_tm < target_tm_optimal && base::nchar(downstream_left_inner) < max_target_length) {
+      if (base::nchar(downstream_left_inner) >= max_target_length) break
+
+      if (df_tm < target_tm_min) {
+        # Extend right
         next_len <- base::nchar(downstream_left_inner) + 1
         if (next_len > base::nchar(downstream_seq)) break
         downstream_left_inner <- base::substring(downstream_seq, 1, next_len)
-      } else if (df_tm > target_tm_optimal && base::nchar(downstream_left_inner) > min_target_length) {
+      } else if (df_tm > target_tm_max) {
+        # Trim from right
         downstream_left_inner <- base::substring(downstream_left_inner, 1, base::nchar(downstream_left_inner) - 1)
       } else {
-        break
+        # Within range but not optimal — fine-tune
+        if (df_tm < target_tm_optimal && base::nchar(downstream_left_inner) < max_target_length) {
+          next_len <- base::nchar(downstream_left_inner) + 1
+          if (next_len > base::nchar(downstream_seq)) break
+          downstream_left_inner <- base::substring(downstream_seq, 1, next_len)
+        } else if (df_tm > target_tm_optimal && base::nchar(downstream_left_inner) > min_target_length) {
+          downstream_left_inner <- base::substring(downstream_left_inner, 1, base::nchar(downstream_left_inner) - 1)
+        } else {
+          break
+        }
       }
-    }
 
-    df_tm <- .safe_tm(downstream_left_inner)
-    if (!base::is.na(df_tm) && df_tm >= target_tm_min && df_tm <= target_tm_max) {
-      best_df_target <- downstream_left_inner
-      best_df_tm <- df_tm
+      df_tm <- .safe_tm(downstream_left_inner)
+      if (!base::is.na(df_tm) && df_tm >= target_tm_min && df_tm <= target_tm_max) {
+        best_df_target <- downstream_left_inner
+        best_df_tm <- df_tm
+      }
+      iteration <- iteration + 1
     }
-    iteration <- iteration + 1
   }
 
   # ===========================================================

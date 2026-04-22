@@ -310,6 +310,7 @@ read_genome_genbank <- function(genbank_file) {
     }
 
     locus_tag <- qualifiers[["locus_tag"]]
+    if (base::is.null(locus_tag)) locus_tag <- qualifiers[["old_locus_tag"]]
     gene_name <- qualifiers[["gene"]]
     product_name <- qualifiers[["product"]]
 

@@ -195,6 +195,71 @@ read_vector_file <- function(vector_file, kill_snapgene = FALSE) {
 }
 
 
+#' Convert a GenBank file to a SnapGene .dna file via the SnapGene CLI.
+#' Requires the SnapGene application to be installed locally; if SnapGene
+#' is running, it is closed first (with `kill_snapgene = TRUE`) so the CLI
+#' can acquire the file. Returns the output .dna path on success, or NULL
+#' if conversion failed.
+#' @keywords internal
+.snapgene_convert_to_dna <- function(gbk_path, dna_path = NULL, kill_snapgene = TRUE) {
+  snapgene_bin <- .find_snapgene_bin()
+  if (base::is.null(snapgene_bin)) {
+    base::warning("SnapGene CLI not found; skipping .dna export for ", gbk_path,
+                  call. = FALSE)
+    return(NULL)
+  }
+  if (kill_snapgene && .is_snapgene_running()) {
+    .kill_snapgene()
+    base::Sys.sleep(1)
+  }
+  if (base::is.null(dna_path)) {
+    dna_path <- base::sub("\\.gbk?$", ".dna", gbk_path, ignore.case = TRUE)
+    if (dna_path == gbk_path) dna_path <- base::paste0(gbk_path, ".dna")
+  }
+  commands <- base::list(
+    base::sprintf('"%s" --convert "SnapGene" --input "%s" --output "%s"',
+                  snapgene_bin, gbk_path, dna_path),
+    base::sprintf('"%s" --convert "SnapGene DNA" --input "%s" --output "%s"',
+                  snapgene_bin, gbk_path, dna_path)
+  )
+  for (cmd in commands) {
+    if (base::file.exists(dna_path)) base::file.remove(dna_path)
+    exit_code <- base::tryCatch(
+      base::system(cmd, ignore.stdout = TRUE, ignore.stderr = TRUE, timeout = 30),
+      error = function(e) -1,
+      warning = function(w) -1
+    )
+    if (exit_code == 0 && base::file.exists(dna_path) &&
+        base::file.info(dna_path)$size > 500) {
+      return(dna_path)
+    }
+  }
+  base::warning("SnapGene CLI failed to produce .dna for ", gbk_path, call. = FALSE)
+  return(NULL)
+}
+
+#' Convenience wrapper: scan a directory for .gbk files and emit a .dna for
+#' each one. Useful as a post-processing step after the shared pipeline
+#' finishes writing per-construct GenBank files.
+#' @keywords internal
+.snapgene_export_dna_dir <- function(dir_path, kill_snapgene = TRUE) {
+  if (!base::dir.exists(dir_path)) return(character(0))
+  gbks <- base::list.files(dir_path, pattern = "\\.gbk?$", full.names = TRUE,
+                            ignore.case = TRUE, recursive = TRUE)
+  if (base::length(gbks) == 0) return(character(0))
+  out <- base::character(0)
+  # Kill SnapGene once at the start so we don't thrash the CLI between files.
+  if (kill_snapgene && .is_snapgene_running()) {
+    .kill_snapgene()
+    base::Sys.sleep(1)
+  }
+  for (gb in gbks) {
+    dna <- .snapgene_convert_to_dna(gb, kill_snapgene = FALSE)
+    if (!base::is.null(dna)) out <- base::c(out, dna)
+  }
+  out
+}
+
 #' Find SnapGene binary path
 #' @keywords internal
 .find_snapgene_bin <- function() {

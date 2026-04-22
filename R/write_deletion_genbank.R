@@ -15,6 +15,7 @@
 #' @param end Integer. Vector insertion site end position (1-based, inclusive).
 #' @param locus_tag Character. Target locus tag for annotation labels.
 #' @param primers Named list. Output from \code{design_deletion_primers()}.
+#'   If \code{NULL}, the construct is written without primer feature annotations.
 #' @param upstream_bp Integer. Length of upstream arm.
 #' @param downstream_bp Integer. Length of downstream arm.
 #' @param output_path Character. Path for the output GenBank file.
@@ -169,45 +170,48 @@ write_deletion_genbank <- function(
   )
 
   # --- Step 7: Add primer annotations ---
-  # Use primer names from result list (e.g., [locus_tag]_UF, _UR, _DF, _DR)
-  uf_label <- base::ifelse(!base::is.null(primers$upstream_forward_name),
-                            primers$upstream_forward_name, "Upstream_Forward")
-  ur_label <- base::ifelse(!base::is.null(primers$upstream_reverse_name),
-                            primers$upstream_reverse_name, "Upstream_Reverse")
-  df_label <- base::ifelse(!base::is.null(primers$downstream_forward_name),
-                            primers$downstream_forward_name, "Downstream_Forward")
-  dr_label <- base::ifelse(!base::is.null(primers$downstream_reverse_name),
-                            primers$downstream_reverse_name, "Downstream_Reverse")
+  primer_features <- base::character(0)
+  if (!base::is.null(primers)) {
+    # Use primer names from result list (e.g., [locus_tag]_UF, _UR, _DF, _DR)
+    uf_label <- base::ifelse(!base::is.null(primers$upstream_forward_name),
+                              primers$upstream_forward_name, "Upstream_Forward")
+    ur_label <- base::ifelse(!base::is.null(primers$upstream_reverse_name),
+                              primers$upstream_reverse_name, "Upstream_Reverse")
+    df_label <- base::ifelse(!base::is.null(primers$downstream_forward_name),
+                              primers$downstream_forward_name, "Downstream_Forward")
+    dr_label <- base::ifelse(!base::is.null(primers$downstream_reverse_name),
+                              primers$downstream_reverse_name, "Downstream_Reverse")
 
-  primer_features <- base::c(
-    # Upstream Forward (sense strand)
-    base::sprintf("     primer          %d..%d", primers$upstream_forward_start, primers$upstream_forward_end),
-    base::sprintf("                     /label=%s", uf_label),
-    base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
-            primers$upstream_forward_tm_target, primers$upstream_forward_tm_full),
-    base::sprintf("                     /note=seq: %s", primers$upstream_forward_primer),
-    "",
-    # Upstream Reverse (complement)
-    base::sprintf("     primer          complement(%d..%d)", primers$upstream_reverse_start, primers$upstream_reverse_end),
-    base::sprintf("                     /label=%s", ur_label),
-    base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
-            primers$upstream_reverse_tm_target, primers$upstream_reverse_tm_full),
-    base::sprintf("                     /note=seq: %s", primers$upstream_reverse_primer),
-    "",
-    # Downstream Forward (sense strand)
-    base::sprintf("     primer          %d..%d", primers$downstream_forward_start, primers$downstream_forward_end),
-    base::sprintf("                     /label=%s", df_label),
-    base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
-            primers$downstream_forward_tm_target, primers$downstream_forward_tm_full),
-    base::sprintf("                     /note=seq: %s", primers$downstream_forward_primer),
-    "",
-    # Downstream Reverse (complement)
-    base::sprintf("     primer          complement(%d..%d)", primers$downstream_reverse_start, primers$downstream_reverse_end),
-    base::sprintf("                     /label=%s", dr_label),
-    base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
-            primers$downstream_reverse_tm_target, primers$downstream_reverse_tm_full),
-    base::sprintf("                     /note=seq: %s", primers$downstream_reverse_primer)
-  )
+    primer_features <- base::c(
+      # Upstream Forward (sense strand)
+      base::sprintf("     primer          %d..%d", primers$upstream_forward_start, primers$upstream_forward_end),
+      base::sprintf("                     /label=%s", uf_label),
+      base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
+              primers$upstream_forward_tm_target, primers$upstream_forward_tm_full),
+      base::sprintf("                     /note=seq: %s", primers$upstream_forward_primer),
+      "",
+      # Upstream Reverse (complement)
+      base::sprintf("     primer          complement(%d..%d)", primers$upstream_reverse_start, primers$upstream_reverse_end),
+      base::sprintf("                     /label=%s", ur_label),
+      base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
+              primers$upstream_reverse_tm_target, primers$upstream_reverse_tm_full),
+      base::sprintf("                     /note=seq: %s", primers$upstream_reverse_primer),
+      "",
+      # Downstream Forward (sense strand)
+      base::sprintf("     primer          %d..%d", primers$downstream_forward_start, primers$downstream_forward_end),
+      base::sprintf("                     /label=%s", df_label),
+      base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
+              primers$downstream_forward_tm_target, primers$downstream_forward_tm_full),
+      base::sprintf("                     /note=seq: %s", primers$downstream_forward_primer),
+      "",
+      # Downstream Reverse (complement)
+      base::sprintf("     primer          complement(%d..%d)", primers$downstream_reverse_start, primers$downstream_reverse_end),
+      base::sprintf("                     /label=%s", dr_label),
+      base::sprintf("                     /note=Tm(target): %.2f C, Tm(full): %.2f C",
+              primers$downstream_reverse_tm_target, primers$downstream_reverse_tm_full),
+      base::sprintf("                     /note=seq: %s", primers$downstream_reverse_primer)
+    )
+  }
 
   # --- Step 8: Build ORIGIN section ---
   origin_lines <- "ORIGIN"
