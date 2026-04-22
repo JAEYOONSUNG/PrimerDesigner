@@ -56,7 +56,8 @@ visualize_shared_design <- function(
     output_file,
     width = 14,
     height = 17,
-    also_png = FALSE
+    also_png = FALSE,
+    kill_snapgene = FALSE
 ) {
   .need_pkg <- function(pkg) if (!base::requireNamespace(pkg, quietly = TRUE))
     base::stop("Package '", pkg, "' is required for visualize_shared_design().")
@@ -78,7 +79,8 @@ visualize_shared_design <- function(
   cdp <- result$construct_deletion_primers
 
   # Resolve per-genome GenBank paths for Panel G
-  gbk_paths <- .shared_viz_resolve_gbk(tc$genome_id, genbank_dir)
+  gbk_paths <- .shared_viz_resolve_gbk(tc$genome_id, genbank_dir,
+                                        kill_snapgene = kill_snapgene)
 
   # 1) Parse construct .gbk (A, B panels)
   construct_files <- base::list.files(construct_gbk_dir, pattern = "\\.gbk$",
@@ -107,7 +109,7 @@ visualize_shared_design <- function(
 # =============================================================================
 # Internal: GenBank path resolution
 # =============================================================================
-.shared_viz_resolve_gbk <- function(genome_ids, dir) {
+.shared_viz_resolve_gbk <- function(genome_ids, dir, kill_snapgene = FALSE) {
   exts <- c("gbk", "gb", "gbff", "genbank", "dna")
   out <- base::character(base::length(genome_ids))
   base::names(out) <- genome_ids
@@ -122,7 +124,7 @@ visualize_shared_design <- function(
     picked <- hit[1]
     # .dna (SnapGene) is converted on the fly to a temp GenBank file.
     if (base::tolower(tools::file_ext(picked)) == "dna") {
-      gb_lines <- .get_genbank_from_dna(picked, kill_snapgene = FALSE)
+      gb_lines <- .get_genbank_from_dna(picked, kill_snapgene = kill_snapgene)
       tmp_gbk <- base::file.path(base::tempdir(), base::paste0(g, ".gbk"))
       base::writeLines(gb_lines, tmp_gbk)
       picked <- tmp_gbk
@@ -198,13 +200,19 @@ visualize_shared_design <- function(
   # ---- Assemble -------------------------------------------------------------
   mid    <- (p_share | p_order) + patchwork::plot_layout(widths = c(1.2, 1.0))
   dendro_w <- 28
+  # Width proportional to each panel's max arm span so genomes with the
+  # longest arm render at real scale in both E and F.
   bottom <- (ef$p_dendro | ef$p_left | ef$p_right) +
     patchwork::plot_layout(
-      widths = c(dendro_w, ef$min_l, ef$min_r) /
-                base::sum(c(dendro_w, ef$min_l, ef$min_r)))
+      widths = c(dendro_w, ef$max_l, ef$max_r) /
+                base::sum(c(dendro_w, ef$max_l, ef$max_r)))
 
+  # Scale mid-row (C + D) height with the number of unique oligos so multi-
+  # cluster runs (subgroup-split UR/DF) don't crush the D label block.
+  n_oligos <- base::nrow(pc)
+  mid_h <- 0.70 * base::max(1.0, n_oligos / 4)
   combo <- p_overview / p_zoom / mid / bottom / p_G +
-    patchwork::plot_layout(heights = c(0.80, 0.70, 0.70, 0.85, 0.70)) +
+    patchwork::plot_layout(heights = c(0.80, 1.20, mid_h, 0.85, 0.70)) +
     patchwork::plot_annotation(
       title = "Shared-design summary",
       subtitle = base::sprintf(
@@ -539,7 +547,22 @@ visualize_shared_design <- function(
       overhang_seq = base::substr(full_primer, 1, overhang_len),
       core_seq     = base::substr(full_primer, overhang_len + 1, full_len))
 
-  full_dedup <- full_dedup %>% dplyr::arrange(role) %>%
+  # Deterministic ordering: primary = role (UF, UR, DF, DR); secondary = the
+  # numeric cluster index parsed from cluster_id (so "UF_cluster_1" precedes
+  # "UF_cluster_2" regardless of hash order from the group_by above).
+  cluster_num <- function(x) {
+    # cluster_id may be a "+" join of several cluster names (e.g.
+    # "UR_cluster_1+UR_cluster_2" if two sequences collapse to one full
+    # primer). Use the minimum numeric suffix across members.
+    parts <- base::strsplit(x, "+", fixed = TRUE)
+    base::vapply(parts, function(p) {
+      nums <- base::suppressWarnings(
+        base::as.integer(base::sub(".*_cluster_([0-9]+).*", "\\1", p)))
+      base::min(nums, na.rm = TRUE)
+    }, numeric(1))
+  }
+  full_dedup <- full_dedup %>%
+    dplyr::arrange(role, cluster_num(cluster_id)) %>%
     dplyr::mutate(row_y = base::rev(base::seq(from = 1, by = 2.2,
                                                length.out = dplyr::n())))
   full_dedup <- full_dedup %>%
@@ -556,6 +579,16 @@ visualize_shared_design <- function(
       overhang_text_pal[base::as.character(role)], overhang_seq, core_seq))
 
   bar_xmax <- 1
+  # Responsive sequence text size: shrink when the longest "5'- ... -3'"
+  # string exceeds the width that size=2.4 can comfortably hold (~40 chars).
+  # Empirically tested: size 2.4 fits ~40 chars; scale down inversely when
+  # longer. Clamp so tiny fonts don't become unreadable.
+  max_display_chars <- base::max(
+    base::nchar(full_dedup$full_primer) + 8L, na.rm = TRUE)
+  base_size <- 2.4
+  ref_chars <- 40
+  seq_text_size <- base::max(1.5, base::min(base_size,
+                                              base_size * ref_chars / max_display_chars))
   ggplot2::ggplot(full_dedup) +
     ggplot2::geom_rect(
       ggplot2::aes(xmin = 0, xmax = bar_xmax,
@@ -564,7 +597,7 @@ visualize_shared_design <- function(
       colour = "grey20", linewidth = 0.18) +
     ggtext::geom_richtext(
       ggplot2::aes(x = bar_xmax / 2, y = row_y, label = seq_display),
-      family = "mono", size = 2.4, colour = "white",
+      family = "mono", size = seq_text_size, colour = "white",
       fill = NA, label.color = NA,
       label.padding = grid::unit(0, "pt")) +
     ggplot2::scale_fill_manual(values = pal_role, guide = "none") +
@@ -592,8 +625,10 @@ visualize_shared_design <- function(
       axis.text.x = ggplot2::element_blank(),
       axis.ticks = ggplot2::element_blank(),
       plot.margin = ggplot2::margin(6, 10, 6, 6),
-      axis.text.y = ggtext::element_markdown(size = 7.5, lineheight = 1.25,
-                                              colour = "grey25", hjust = 1))
+      axis.text.y = ggtext::element_markdown(
+        size = base::max(5.5, base::min(7.5, 7.5 * 4 / base::nrow(full_dedup))),
+        lineheight = 1.25,
+        colour = "grey25", hjust = 1))
 }
 
 # =============================================================================
@@ -606,25 +641,49 @@ visualize_shared_design <- function(
   genome_ids <- tc$genome_id
   left_arms  <- stats::setNames(tc$effective_left_arm_seq,  genome_ids)
   right_arms <- stats::setNames(tc$effective_right_arm_seq, genome_ids)
-  min_l <- base::min(base::nchar(left_arms))
-  min_r <- base::min(base::nchar(right_arms))
-  left_aligned  <- base::sapply(left_arms,
-    function(s) base::substr(s, base::nchar(s) - min_l + 1, base::nchar(s)))
-  right_aligned <- base::sapply(right_arms,
-    function(s) base::substr(s, 1, min_r))
+  left_lens  <- base::nchar(left_arms)
+  right_lens <- base::nchar(right_arms)
+  min_l <- base::min(left_lens)
+  min_r <- base::min(right_lens)
+  max_l <- base::max(left_lens)
+  max_r <- base::max(right_lens)
 
-  to_long <- function(aligned_vec, arm_tag) {
-    m <- base::do.call(base::rbind, base::strsplit(aligned_vec, "", fixed = TRUE))
-    base::rownames(m) <- base::names(aligned_vec)
-    df <- base::as.data.frame(m, stringsAsFactors = FALSE)
-    df$genome <- base::rownames(df)
-    long <- tidyr::pivot_longer(df, cols = -genome, names_to = "pos",
-                                 values_to = "base")
-    long$pos <- base::as.integer(base::sub("^V", "", long$pos))
-    long$arm <- arm_tag; long
+  # Build a long data frame of every (genome, position, base) WITHOUT forcing
+  # uniform width. x-axis meaning:
+  #   Upstream arm: "bp BEFORE target start" -- positions count down toward 0
+  #     at the deletion boundary (right edge of plot).
+  #   Downstream arm: "bp AFTER target end" -- positions count up from 0 at
+  #     the deletion boundary (left edge of plot).
+  # This way arms of different lengths / offsets render at their real
+  # coordinates instead of being fraudulently co-aligned to the shortest
+  # genome's arm.
+  build_arm_long <- function(arms, arm_tag) {
+    out <- base::vector("list", base::length(arms))
+    for (i in base::seq_along(arms)) {
+      s <- base::as.character(arms[[i]])
+      gid <- base::names(arms)[i]
+      chars <- base::strsplit(s, "", fixed = TRUE)[[1]]
+      n <- base::length(chars)
+      if (n == 0) next
+      pos <- if (arm_tag == "Upstream arm") {
+        # last base sits at x=0 (inner boundary at right edge), rest negative
+        -base::rev(base::seq_len(n) - 1L)
+      } else {
+        # first base at x=1 (inner boundary just to the left), extend rightward
+        base::seq_len(n)
+      }
+      out[[i]] <- base::data.frame(
+        genome = gid, pos = pos, base = chars, arm = arm_tag,
+        stringsAsFactors = FALSE)
+    }
+    base::do.call(base::rbind, out)
   }
-  base_long <- dplyr::bind_rows(to_long(left_aligned,  "Upstream arm"),
-                                 to_long(right_aligned, "Downstream arm"))
+  base_long <- dplyr::bind_rows(build_arm_long(left_arms,  "Upstream arm"),
+                                 build_arm_long(right_arms, "Downstream arm"))
+
+  # Consensus & mismatch: computed only among genomes that actually cover each
+  # position. Positions unique to one genome will necessarily match the
+  # (singleton) consensus.
   consensus <- base_long %>% dplyr::group_by(arm, pos) %>%
     dplyr::summarise(
       cons = base::names(base::sort(base::table(base), decreasing = TRUE))[1],
@@ -633,7 +692,14 @@ visualize_shared_design <- function(
     dplyr::mutate(match = base == cons)
   base_long$cell_fill <- base::ifelse(base_long$match, "match", base_long$base)
 
-  # Hamming clustering
+  # Hamming clustering on the OVERLAPPING portion (inner min_l bp of upstream
+  # + inner min_r bp of downstream, right-anchored for L and left-anchored for
+  # R). Arms of different lengths across genomes would otherwise produce
+  # differently-shaped matrices that hclust can't consume directly.
+  left_aligned  <- base::sapply(left_arms,
+    function(s) base::substr(s, base::nchar(s) - min_l + 1, base::nchar(s)))
+  right_aligned <- base::sapply(right_arms,
+    function(s) base::substr(s, 1, min_r))
   hamming_mat <- function(mat) {
     n <- base::nrow(mat)
     d <- base::matrix(0, n, n,
@@ -662,7 +728,10 @@ visualize_shared_design <- function(
                 N = "#9AA0A6")
 
   pal_role <- c(UF = "#0072B2", UR = "#D55E00", DF = "#56B4E9", DR = "#E69F00")
-  get_primer_positions <- function(arm_tag, aligned_len, arms_original, role_df) {
+  # Primer spans in the new x-coordinate system (same as base_long):
+  #   Upstream arm: x < 0, inner boundary at x = 0
+  #   Downstream arm: x > 0, inner boundary at x = 1
+  get_primer_positions <- function(arm_tag, arms_original, role_df) {
     result <- base::list()
     for (rid in base::seq_len(base::nrow(role_df))) {
       core <- role_df$shared_core[rid]
@@ -671,29 +740,83 @@ visualize_shared_design <- function(
       members <- base::strsplit(role_df$used_by[rid], ", ", fixed = TRUE)[[1]]
       for (gid in members) {
         arm <- arms_original[[gid]]; if (base::is.null(arm)) next
+        arm_len <- base::nchar(arm)
         hits <- base::unlist(base::gregexpr(search_seq, arm, fixed = TRUE))
         hits <- hits[hits > 0]
         for (h in hits) {
-          ap <- if (arm_tag == "Upstream arm") h - (base::nchar(arm) - aligned_len) else h
-          if (ap < 1 || ap + base::nchar(search_seq) - 1 > aligned_len) next
+          k <- base::nchar(search_seq)
+          if (arm_tag == "Upstream arm") {
+            # substr position i in arm maps to x = i - arm_len (so last base = 0)
+            start_x <- h - arm_len
+            end_x   <- start_x + k - 1L
+          } else {
+            start_x <- h
+            end_x   <- h + k - 1L
+          }
           result[[base::length(result) + 1]] <- base::data.frame(
             arm = arm_tag, genome = gid, role = role_df$role[rid],
             cluster_id = role_df$cluster_id[rid],
-            start = ap, end = ap + base::nchar(search_seq) - 1,
+            start = start_x, end = end_x,
             stringsAsFactors = FALSE)
         }
       }
     }
     base::do.call(base::rbind, result)
   }
-  spans_left  <- get_primer_positions("Upstream arm",  min_l, left_arms,
+  spans_left  <- get_primer_positions("Upstream arm", left_arms,
                                        pc[pc$role %in% c("UF","UR"), ])
-  spans_right <- get_primer_positions("Downstream arm", min_r, right_arms,
+  spans_right <- get_primer_positions("Downstream arm", right_arms,
                                        pc[pc$role %in% c("DF","DR"), ])
-  primer_spans <- dplyr::bind_rows(spans_left, spans_right) %>%
-    dplyr::group_by(arm, role, cluster_id) %>%
-    dplyr::summarise(start = base::min(start), end = base::max(end),
-                      .groups = "drop")
+  # Keep per-position bands: a shared cluster_id that binds at different
+  # coordinates in different subgroups (e.g. DR_cluster_1 landing at +218 in
+  # ATCC/GT3570 but at +832 in 42DF/45DF) must show up as TWO boxes in the F
+  # panel, not one giant merged band. Collapse nearby positions (within 30bp)
+  # into a single band so minor per-genome jitter doesn't produce N boxes.
+  cluster_positions <- function(df) {
+    if (base::nrow(df) == 0) return(df)
+    df <- df[base::order(df$arm, df$role, df$cluster_id, df$start), ]
+    out <- base::list()
+    i <- 1L
+    while (i <= base::nrow(df)) {
+      j <- i
+      while (j < base::nrow(df) &&
+             df$arm[j + 1L] == df$arm[i] &&
+             df$role[j + 1L] == df$role[i] &&
+             df$cluster_id[j + 1L] == df$cluster_id[i] &&
+             (df$start[j + 1L] - df$start[j]) <= 30L) {
+        j <- j + 1L
+      }
+      out[[base::length(out) + 1L]] <- base::data.frame(
+        arm = df$arm[i], role = df$role[i],
+        cluster_id = df$cluster_id[i],
+        start = base::min(df$start[i:j]),
+        end = base::max(df$end[i:j]),
+        stringsAsFactors = FALSE)
+      i <- j + 1L
+    }
+    base::do.call(base::rbind, out)
+  }
+  primer_spans <- cluster_positions(dplyr::bind_rows(spans_left, spans_right))
+
+  # Lane = cluster number. Number of lanes per arm equals the largest
+  # cluster index seen across that arm's roles (e.g. left arm with UF×1 +
+  # UR×3 uses 3 lanes: lane 1 holds UF c1 AND UR c1, lane 2 holds UR c2,
+  # lane 3 holds UR c3 -- UF and UR sit at opposite x-ends of the arm so
+  # same-lane co-habitation never visually overlaps). Falls back to a
+  # single lane for any cluster_id without a trailing _N suffix.
+  if (base::nrow(primer_spans) > 0) {
+    cluster_num <- function(x) {
+      m <- base::suppressWarnings(
+        base::as.integer(base::sub(".*_cluster_(\\d+)$", "\\1", x)))
+      m[base::is.na(m)] <- 1L
+      m
+    }
+    primer_spans$cnum <- cluster_num(primer_spans$cluster_id)
+    primer_spans$lane <- primer_spans$cnum
+    primer_spans <- primer_spans[base::order(primer_spans$arm,
+                                              primer_spans$lane,
+                                              primer_spans$role), ]
+  }
 
   make_arm <- function(arm_tag, panel_tag, show_y = TRUE) {
     df <- base_long %>% dplyr::filter(arm == arm_tag)
@@ -701,6 +824,14 @@ visualize_shared_design <- function(
     nlev <- base::length(base::levels(df$genome))
     arm_col <- if (arm_tag == "Upstream arm") pal_track[["Upstream arm"]]
                else pal_track[["Downstream arm"]]
+    size_range <- if (arm_tag == "Upstream arm")
+      base::sprintf("%d-%d bp", min_l, max_l)
+    else
+      base::sprintf("%d-%d bp", min_r, max_r)
+    n_lanes <- if (base::nrow(spans) > 0) base::max(spans$lane) else 0L
+    lane_h <- 0.55
+    lane_gap <- 0.08
+    strip_base <- nlev + 0.55
     p <- ggplot2::ggplot(df) +
       ggplot2::geom_tile(
         ggplot2::aes(x = pos, y = genome, fill = cell_fill), height = 0.62) +
@@ -708,34 +839,63 @@ visualize_shared_design <- function(
         breaks = c("match", "A", "C", "G", "T"),
         labels = c("match", "A", "C", "G", "T"),
         name = NULL)
+    # x-pad in bp scale so label sits just outside the box without clipping.
+    x_range <- if (base::nrow(df) > 0)
+      base::range(df$pos) else c(0, 1)
+    label_pad <- base::max(2L,
+      base::as.integer(base::ceiling(base::diff(x_range) * 0.005)))
     for (i in base::seq_len(base::nrow(spans))) {
       sp <- spans[i, ]
       role_col <- pal_role[[sp$role]]
+      lane_ymin <- strip_base + (sp$lane - 1L) * (lane_h + lane_gap)
+      lane_ymax <- lane_ymin + lane_h
+      # Place label on the side of the box AWAY from the deletion boundary
+      # so it never clips at the plot edge: UR/DR hug the boundary -> label
+      # to the LEFT of the box; UF/DF sit at the outer end -> label to the
+      # RIGHT. hjust picks the correct anchor relative to label position.
+      if (sp$role %in% c("UR", "DR")) {
+        label_x <- sp$start - label_pad
+        label_hjust <- 1
+      } else {
+        label_x <- sp$end + label_pad
+        label_hjust <- 0
+      }
       p <- p +
         ggplot2::annotate("rect",
           xmin = sp$start - 0.5, xmax = sp$end + 0.5,
-          ymin = 0.5, ymax = nlev + 1.05,
+          ymin = 0.5, ymax = strip_base - 0.02,
           fill = role_col, alpha = 0.08) +
         ggplot2::annotate("rect",
           xmin = sp$start, xmax = sp$end,
-          ymin = nlev + 0.55, ymax = nlev + 1.05,
+          ymin = lane_ymin, ymax = lane_ymax,
           fill = role_col, colour = "grey25", linewidth = 0.15) +
         ggplot2::annotate("text",
-          x = (sp$start + sp$end) / 2, y = nlev + 0.80,
-          label = sp$role,
-          size = 3.2, colour = "white", fontface = "bold")
+          x = label_x,
+          y = (lane_ymin + lane_ymax) / 2,
+          label = base::sprintf("%s %s", sp$role,
+                                 base::sub(".*_cluster_", "c", sp$cluster_id)),
+          size = 3.0, hjust = label_hjust,
+          colour = role_col, fontface = "bold")
     }
+    # Dashed inner-boundary marker (deletion edge).
+    boundary_x <- if (arm_tag == "Upstream arm") 0 else 0.5
+    p <- p + ggplot2::geom_vline(xintercept = boundary_x, linetype = "dashed",
+                                  colour = "grey35", linewidth = 0.3)
+    x_subtitle <- if (arm_tag == "Upstream arm")
+      "bp before target start (0 = deletion boundary)"
+    else
+      "bp after target end (0 = deletion boundary)"
+    top_pad <- base::max(1.15,
+      0.20 + base::as.numeric(n_lanes) * (lane_h + lane_gap) + 0.12)
     p +
-      ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = c(0.2, 1.15))) +
+      ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = c(0.2, top_pad))) +
       ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = 0.005)) +
       ggplot2::labs(
-        title = base::sprintf("%s . %s alignment (%d bp)", panel_tag, arm_tag,
-          if (arm_tag == "Upstream arm") min_l else min_r),
-        subtitle = base::sprintf("grey = match . coloured = mismatch . tinted column = primer binding (%s)",
+        title = base::sprintf("%s . %s alignment (%s)", panel_tag, arm_tag,
+                               size_range),
+        subtitle = base::sprintf("rows show each genome's own arm span . grey = match to per-column consensus . coloured = mismatch . tinted column = primer binding (%s)",
           if (arm_tag == "Upstream arm") "UF / UR" else "DF / DR"),
-        x = base::sprintf("aligned bp - %s",
-          if (arm_tag == "Upstream arm") "inner boundary at right edge"
-          else "inner boundary at left edge"),
+        x = x_subtitle,
         y = NULL) +
       th +
       ggplot2::theme(
@@ -778,7 +938,7 @@ visualize_shared_design <- function(
     ggplot2::theme(plot.margin = ggplot2::margin(34, 1, 48, 1))
 
   base::list(p_dendro = p_dendro, p_left = p_left, p_right = p_right,
-             min_l = min_l, min_r = min_r,
+             min_l = min_l, min_r = min_r, max_l = max_l, max_r = max_r,
              clust_order_wrapped = clust_order_wrapped)
 }
 

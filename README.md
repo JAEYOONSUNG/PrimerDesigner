@@ -26,6 +26,7 @@ Just provide a GenBank accession and a vector `.dna` file — BSgenome building,
 - **Excel output** — Multi-sheet `.xlsx` with unified primer tables and conditional formatting
 - **SnapGene `.dna` support** — Direct reading of SnapGene binary vector files via `reticulate`
 - **Resume mode** — Interrupt and restart long genome-wide runs without losing progress
+- **Shared primer design across genomes** — `shared_primer_design()` picks one UF/UR/DF/DR oligo set that works across multiple closely related target genomes, falling back to subgroup-splitting per strain only when no shared candidate exists
 
 ---
 
@@ -56,26 +57,21 @@ pip install snapgene_reader
 
 ## Quick Start
 
-Just provide a GenBank accession and a vector `.dna` file. Genome download, BSgenome package build, and Bowtie index creation are all handled automatically.
+Just provide a GenBank accession (or a local `.gbff` file) and a vector `.dna` file. Genome download, BSgenome package build, and Bowtie index creation are all handled automatically.
 
 ```r
 library(PrimerDesigner)
 
-# Single call does everything — includes auto BSgenome/Bowtie build
-# All files are saved to the current working directory by default
 result <- design_grna_and_deletion(
-  genbank_accession    = "GCF_030376765.1", # NCBI accession or local .gbff/.gb/.gbk file path
-  locus_tags           = c("QT235_RS00005", "QT235_RS00010"), # single, multiple, or "all"
+  genbank_accession    = "GCF_030376765.1",        # NCBI accession or local .gbff/.gb/.gbk file path
+  locus_tags           = c("QT235_RS00005", "QT235_RS00010"),  # single, multiple, or "all"
   nuclease             = "GeoCas9",
   grna_vector_file     = "~/vectors/pG1Kt-GeoCas9EF.dna",
-  grna_start           = 7823,
-  grna_end             = 7850,
-  deletion_start = 3977,
-  deletion_end   = 3987,
-  grna_cloning_method = "gibson",
-  upstream_bp = 500, 
-  downstream_bp = 500,
-  methylation_patterns = c("GCCAT","TACNNNNNNCTC","RTAYNNNNNCTC","GAGNNNNNNNTGG"),
+  grna_start           = 8811,
+  grna_end             = 8840,
+  grna_cloning_method  = "golden_gate",
+  grna_enzyme          = "BbsI",
+  methylation_patterns = c("GCCAT", "CCANNNNNTTG"),
   output_file          = "all_primers.xlsx",
   output_dir           = "constructs"
 )
@@ -103,27 +99,83 @@ On subsequent runs, pre-built BSgenome/Bowtie are reused automatically.
 
 ---
 
+## Multi-Genome Shared Primer Design
+
+For knocking out the same gene / ortholog across multiple closely related strains, `shared_primer_design()` picks primers that bind every target genome simultaneously and falls back to per-strain subgroups only where cross-genome sharing is biologically impossible. All outputs land in a single 3-sheet Excel workbook plus an optional single-page summary PDF.
+
+```r
+# 1) Discover the target CDS across every genome in a folder.
+targets <- find_target_across_genomes(
+  genbank_dirs = "path/to/gbk",
+  query        = "TIGR02679",        # locus_tag, gene name, or product keyword
+  query_type   = "product"
+)
+
+# 2) End-to-end design: shared UF/UR/DF/DR + gRNA cloning + check primers +
+#    GenBank constructs + Excel workbook.
+res <- shared_primer_design(
+  target_table   = targets[, c("genome_id", "genbank_file", "locus_tag")],
+  nuclease       = "GeoCas9",
+  overlap_policy = "strict",         # inner primers pinned at 0 bp
+  upstream_bp    = 500, downstream_bp = 500,
+  min_arm_bp     = 150L, max_arm_bp   = 3000L,
+  grna_vector_file  = "pJET.gb",
+  grna_start        = 7823, grna_end  = 7850,
+  combined_vector_file          = "pJET.gb",
+  combined_grna_start           = 7823, combined_grna_end      = 7850,
+  combined_deletion_start       = 3977, combined_deletion_end  = 4986,
+  combined_construct_output_dir = "out/constructs",
+  output_file                   = "out/design.xlsx"
+)
+
+# 3) One-page visual summary (arm alignment heatmaps, shared-primer bands,
+#    flanking gene context, construct overview).
+visualize_shared_design(
+  result            = res,
+  genbank_dir       = "path/to/gbk",
+  construct_gbk_dir = "out/constructs",
+  output_file       = "out/summary.pdf"
+)
+```
+
+**Key behaviours:**
+
+- **Strict overlap policy** — Under `overlap_policy = "strict"` the inner primers (UR, DF) are hard-pinned to the deletion boundary (0 bp tolerance). If no shared candidate exists at the boundary, the selector subgroup-splits into per-strain clusters rather than silently drifting off the stop codon.
+- **Shared core + subgroup split** — Outer primers (UF, DR) and check primers progressively share across as many genomes as possible; strain-specific clusters are emitted only when biologically forced (e.g., transposon-adjacent targets).
+- **Cross-role RC collision guard** — The selector rejects any primer whose reverse complement equals its partner on the same arm (prevents the Gibson pair from collapsing the effective homology arm).
+- **Colony-PCR check primers** — cF / cR pairs are placed just outside the effective homology arm (`check_outer_pad` + `check_search_window`, default 50 bp + 800 bp) with a **progressive window-widening loop**: the window doubles up to `check_search_window_max` (default 6000 bp) until a single shared pair covers every genome, falling back to per-strain cR / cF clusters only when the surrounding context genuinely diverges. Tm is enforced at 55 ± 3 °C with a pair ΔTm ≤ 2 °C, strict genome-uniqueness, and a 6 bp 3'-complementarity heterodimer guard.
+- **Per-genome WT / deletion PCR band sizes** — For every (genome, cF, cR) triple the expected wild-type amplicon and post-deletion amplicon length are reported alongside `delta_bp` (equal to the deletion span), so colony PCR gel interpretation is one table lookup.
+- **3-sheet Excel output**:
+  1. `primer_order` — single combined list of every oligo to order (arm primers with Gibson overhangs, gRNA cloning primers with Type IIS overhangs, cF / cR check primers). A `group` column separates arm / gRNA / check, rows are shaded by `used_by` cluster, and thin borders automatically outline each role block.
+  2. `check_primers` — per-genome diagnostic PCR band sizes (WT, deletion, Δ) plus pair ΔTm and dimer flags.
+  3. `final_construct_groups` — canonical construct list with gRNA protospacer and the full UF/UR/DF/DR primer cluster assignment for each build.
+- **Single-page summary PDF** — `visualize_shared_design()` renders a 7-panel overview: construct maps, insert-site zoom, sharing matrix, oligo order list, upstream / downstream arm alignment heatmaps with cluster-banded primer lanes, and the flanking gene context (which CDSes occupy the homology arms on each genome).
+
+The legacy lower-level `design_shared_grna_and_deletion()` is kept exported for back-compat; `shared_primer_design()` is the recommended entry point.
+
+---
+
 ## Pipeline Overview
 
 ```
                     design_grna_and_deletion()
                               │
-         ┌────────────────────┼────────────────────-┐
+         ┌────────────────────┼────────────────────┐
          │      All steps run automatically         │
          │                    │                     │
          ▼                    ▼                     ▼
-  ┌──────────────-┐  ┌─────────────────┐  ┌───────────────-─┐
-  │ Genome Setup  │  │ gRNA Library    │  │ Primer Design   │
-  │ (auto-build)  │  │                 │  │                 │
-  ├──────────────-┤  ├─────────────────┤  ├────────────────-┤
-  │ .fna download │  │ findSpacers     │  │ gRNA cloning    │
-  │ .gbff download│  │ Off-target n0/n1│  │  ├─ Golden Gate │
-  │ BSgenome build│  │ Composite score │  │  └─ Gibson      │
-  │ Bowtie index  │  │ Methylation     │  │ Deletion arms   │
-  └──────────────-┘  │ filtering       │  │ (4-primer)      │
-                     └─────────────────┘  │ Combined GenBank│
-                                          │ Excel output    │
-                                          └───────────────-─┘
+  ┌──────────────┐  ┌─────────────────┐  ┌────────────────┐
+  │ Genome Setup │  │ gRNA Library    │  │ Primer Design  │
+  │ (auto-build) │  │                 │  │                │
+  ├──────────────┤  ├─────────────────┤  ├────────────────┤
+  │ .fna download│  │ findSpacers     │  │ gRNA cloning   │
+  │ .gbff download│ │ Off-target n0/n1│  │  ├─ Golden Gate│
+  │ BSgenome build│ │ Composite score │  │  └─ Gibson     │
+  │ Bowtie index │  │ Methylation     │  │ Deletion arms  │
+  └──────────────┘  │ filtering       │  │ (4-primer)     │
+                    └─────────────────┘  │ Combined GenBank│
+                                         │ Excel output   │
+                                         └────────────────┘
 ```
 
 **Internal call chain:**
@@ -216,7 +268,10 @@ Custom nucleases can be added via `crisprBase::CrisprNuclease()`.
 
 | Function | Description |
 |----------|-------------|
-| `design_grna_and_deletion()` | **Full pipeline**: accession → BSgenome → gRNA → cloning primers → deletion arms → Excel → GenBank. All steps automated |
+| `design_grna_and_deletion()` | **Full pipeline (single genome)**: accession → BSgenome → gRNA → cloning primers → deletion arms → Excel → GenBank. All steps automated |
+| `shared_primer_design()` | **Full pipeline (multi-genome)**: shared UF/UR/DF/DR across strains + gRNA cloning + colony-PCR check primers + combined construct GenBank + 3-sheet Excel. See [Multi-Genome Shared Primer Design](#multi-genome-shared-primer-design) |
+| `find_target_across_genomes()` | Resolve the same ortholog (by locus_tag / gene / product keyword) across a folder of genome files, with interactive ambiguity handling |
+| `visualize_shared_design()` | Single-page 7-panel PDF summary for a `shared_primer_design()` result |
 
 ### Step-by-Step (call individually if needed)
 

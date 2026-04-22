@@ -67,7 +67,8 @@ find_target_across_genomes <- function(
     regex = FALSE,
     interactive = base::interactive(),
     one_per_genome = TRUE,
-    genome_id_from = c("file", "accession")
+    genome_id_from = c("file", "accession"),
+    kill_snapgene = FALSE
 ) {
   query_type <- base::match.arg(query_type)
   genome_id_from <- base::match.arg(genome_id_from)
@@ -98,7 +99,7 @@ find_target_across_genomes <- function(
   rows <- base::list()
   for (gf in gb_files) {
     base::cat("  ", base::basename(gf), "\n")
-    parsed <- base::tryCatch(.find_target_read_any(gf),
+    parsed <- base::tryCatch(.find_target_read_any(gf, kill_snapgene),
                              error = function(e) { base::warning(e$message); NULL })
     if (base::is.null(parsed)) next
     gt <- parsed$genbank_table
@@ -157,10 +158,10 @@ find_target_across_genomes <- function(
 # ---- Internal helpers -------------------------------------------------------
 
 # Read a genome file; transparently handle .dna via SnapGene CLI conversion.
-.find_target_read_any <- function(path) {
+.find_target_read_any <- function(path, kill_snapgene = FALSE) {
   ext <- base::tolower(tools::file_ext(path))
   if (ext == "dna") {
-    gb_lines <- .get_genbank_from_dna(path, kill_snapgene = FALSE)
+    gb_lines <- .get_genbank_from_dna(path, kill_snapgene = kill_snapgene)
     tmp_gbk <- base::tempfile(fileext = ".gbk")
     base::on.exit(if (base::file.exists(tmp_gbk)) base::unlink(tmp_gbk),
                   add = TRUE)

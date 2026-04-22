@@ -123,7 +123,17 @@ design_shared_deletion_primer_cores <- function(
     start = NULL,
     end = NULL,
     construct_output_dir = NULL,
-    output_file = NULL
+    output_file = NULL,
+    inner_boundary_tolerance_bp = 50L,
+    design_check_primers = TRUE,
+    check_outer_pad = 50L,
+    check_search_window = 800L,
+    check_search_window_max = 6000L,
+    check_tm_target = 55,
+    check_tm_tolerance = 3,
+    check_pair_dtm_max = 2,
+    check_primer_min_length = 18L,
+    check_primer_max_length = 25L
 ) {
   min_arm_bp <- base::as.integer(min_arm_bp)
   max_arm_bp <- base::as.integer(max_arm_bp)
@@ -199,8 +209,20 @@ design_shared_deletion_primer_cores <- function(
                     boundary = "outer", preferred_bp_field = "preferred_downstream_bp")
   )
 
+  # Cross-role exclusion: when selecting the reverse-strand role on an arm
+  # (UR after UF, DR after DF), forbid any candidate whose reverse complement
+  # matches a primer_core already chosen for the forward-strand role on the
+  # same arm. Otherwise the pair can end up as RC-of-each-other, which binds
+  # the same strand and reduces the effective arm to the primer length.
   primer_rows <- base::list()
+  pair_of <- base::list(UF = NULL, UR = "UF", DF = NULL, DR = "DF")
   for (role in base::names(role_defs)) {
+    forbidden <- base::character(0)
+    partner <- pair_of[[role]]
+    if (!base::is.null(partner) && !base::is.null(primer_rows[[partner]])) {
+      forbidden <- base::as.character(primer_rows[[partner]]$primer_core_5to3)
+      forbidden <- forbidden[!base::is.na(forbidden) & base::nchar(forbidden) > 0]
+    }
     if (verbose) base::message(sprintf("[shared] selecting role %s ...", role))
     t_role <- base::Sys.time()
     primer_rows[[role]] <- .shared_assign_role_groups(
@@ -220,7 +242,10 @@ design_shared_deletion_primer_cores <- function(
       max_primer_length = max_primer_length,
       tm_target = tm_target,
       require_unique = require_unique,
-      hit_count_cache = hit_count_cache
+      hit_count_cache = hit_count_cache,
+      forbidden_oligos = forbidden,
+      inner_boundary_tolerance_bp = inner_boundary_tolerance_bp,
+      overlap_policy = overlap_policy
     )
     if (verbose) {
       base::message(sprintf("[shared]   %s done in %.1fs (%d cluster(s))", role,
@@ -265,6 +290,33 @@ design_shared_deletion_primer_cores <- function(
   )
   construct_groups <- .shared_build_construct_groups(target_context)
 
+  check_primer_cores <- .shared_empty_check_primer_cores()
+  check_pairs <- .shared_empty_check_pairs()
+  if (base::isTRUE(design_check_primers)) {
+    if (verbose) base::message("[shared] designing colony-PCR check primers ...")
+    main_oligos <- base::as.character(primer_cores$primer_core_5to3)
+    main_oligos <- main_oligos[!base::is.na(main_oligos) & base::nchar(main_oligos) > 0]
+    chk <- .shared_design_check_primers(
+      target_context = target_context,
+      genome_sequences = genome_sequences,
+      dnastr_cache = dnastr_cache,
+      check_outer_pad = check_outer_pad,
+      check_search_window = check_search_window,
+      check_search_window_max = check_search_window_max,
+      tm_target = check_tm_target,
+      tm_tolerance = check_tm_tolerance,
+      pair_dtm_max = check_pair_dtm_max,
+      primer_min_length = check_primer_min_length,
+      primer_max_length = check_primer_max_length,
+      require_unique = require_unique,
+      forbidden_oligos = main_oligos,
+      verbose = verbose
+    )
+    check_primer_cores <- chk$check_primer_cores
+    check_pairs <- chk$check_pairs
+    for (w in chk$warnings) base::warning(w, call. = FALSE)
+  }
+
   if (!base::is.null(construct_output_dir)) {
     if (base::is.null(vector_file) || base::is.null(start) || base::is.null(end)) {
       base::stop("vector_file, start, and end are required when construct_output_dir is set.")
@@ -299,6 +351,8 @@ design_shared_deletion_primer_cores <- function(
     primer_cores = primer_cores,
     target_context = target_context,
     construct_groups = construct_groups,
+    check_primer_cores = check_primer_cores,
+    check_primer_pairs = check_pairs,
     genome_sequences = genome_sequences
   ))
 }
@@ -660,7 +714,8 @@ design_shared_deletion_primer_cores <- function(
     # re-search the entire arm for both shared cores and try to pick an
     # occurrence pair that yields a valid (UF.start < UR.end) frame with
     # effective arm in [min_arm_bp, max_arm_bp].
-    fix_pair <- function(arm_seq, outer_seq, inner_seq, arm_len_i) {
+    fix_pair <- function(arm_seq, outer_seq, inner_seq, arm_len_i,
+                          strict_min = TRUE) {
       outer_hits <- base::unlist(gregexpr(outer_seq, arm_seq, fixed = TRUE), use.names = FALSE)
       inner_hits <- base::unlist(gregexpr(inner_seq, arm_seq, fixed = TRUE), use.names = FALSE)
       outer_hits <- outer_hits[outer_hits > 0]
@@ -680,34 +735,63 @@ design_shared_deletion_primer_cores <- function(
           inner_end <- ih + base::nchar(inner_seq) - 1L
           if (inner_end <= o) next
           eff_arm <- inner_end - o + 1L
-          if (!base::is.null(min_arm_bp) && eff_arm < min_arm_bp) next
+          if (strict_min && !base::is.null(min_arm_bp) && eff_arm < min_arm_bp) next
           if (!base::is.null(max_arm_bp) && eff_arm > max_arm_bp) next
           dev <- base::abs(eff_arm - pref_arm)
           if (dev < best_dev) {
-            best <- base::list(outer_start = o, inner_start = ih, inner_end = inner_end)
+            best <- base::list(outer_start = o, inner_start = ih, inner_end = inner_end,
+                                eff_arm = eff_arm)
             best_dev <- dev
           }
         }
       }
       best
     }
+    # Two-stage: first try strict min_arm_bp; if that yields nothing, relax the
+    # minimum to pick the largest achievable arm (so the design still produces
+    # a result, with a loud warning).
+    fix_pair_or_best <- function(arm_seq, outer_seq, inner_seq, arm_len_i) {
+      r <- fix_pair(arm_seq, outer_seq, inner_seq, arm_len_i, strict_min = TRUE)
+      if (!base::is.null(r)) return(r)
+      fix_pair(arm_seq, outer_seq, inner_seq, arm_len_i, strict_min = FALSE)
+    }
 
-    if (left_start_off > left_end_off) {
+    # Trigger repair when either anchors are out of order OR the resulting
+    # effective arm is below min_arm_bp. When primers have multiple binding
+    # sites in the arm (e.g. transposon repeats), fix_pair picks the
+    # occurrence pair whose effective arm stays within [min_arm_bp, max_arm_bp]
+    # and is closest to the preferred arm length.
+    left_eff_bp <- if (!base::is.null(min_arm_bp) &&
+                      left_start_off <= left_end_off)
+      left_end_off - left_start_off + 1L else NA_integer_
+    trigger_left <- left_start_off > left_end_off ||
+      (!base::is.null(min_arm_bp) && !base::is.na(left_eff_bp) &&
+       left_eff_bp < base::as.integer(min_arm_bp))
+    if (trigger_left) {
       base::warning(sprintf(
-        "[geom] %s left-arm anchors out of order (UF.start=%d > UR.end=%d); searching full arm for a valid pair.",
-        genome_id, left_start_off, left_end_off), call. = FALSE)
+        "[geom] %s left-arm anchors %s (UF.start=%d, UR.end=%d%s); searching full arm for a valid pair.",
+        genome_id,
+        if (left_start_off > left_end_off) "out of order" else "give arm below min_arm_bp",
+        left_start_off, left_end_off,
+        if (!base::is.na(left_eff_bp)) base::sprintf(", eff=%dbp", left_eff_bp) else ""),
+        call. = FALSE)
       uf_seq <- base::as.character(role_hits$UF$shared_core[1])
       if (base::is.na(uf_seq) || base::nchar(uf_seq) == 0) uf_seq <- base::as.character(role_hits$UF$primer_core_5to3[1])
       ur_seq <- base::as.character(role_hits$UR$shared_core[1])
       if (base::is.na(ur_seq) || base::nchar(ur_seq) == 0) ur_seq <- .rc(base::as.character(role_hits$UR$primer_core_5to3[1]))
       arm_seq_l <- base::as.character(row$left_arm_seq[1])
-      fix <- fix_pair(arm_seq_l, uf_seq, ur_seq, base::nchar(arm_seq_l))
+      fix <- fix_pair_or_best(arm_seq_l, uf_seq, ur_seq, base::nchar(arm_seq_l))
       if (base::is.null(fix)) {
         base::warning(sprintf(
-          "[geom] %s: no valid UF/UR placement in left arm for shared cores; skipping this genome (strain-specific design recommended).",
+          "[geom] %s: no valid UF/UR placement in left arm; skipping this genome (strain-specific design recommended).",
           genome_id), call. = FALSE)
         out_rows[[i]] <- NULL
         next
+      }
+      if (!base::is.null(min_arm_bp) && fix$eff_arm < base::as.integer(min_arm_bp)) {
+        base::warning(sprintf(
+          "[geom] %s left arm: best achievable effective arm is %d bp (< min_arm_bp=%s). Kept for design but verify manually.",
+          genome_id, fix$eff_arm, base::format(min_arm_bp)), call. = FALSE)
       }
       left_start_off <- fix$outer_start
       left_end_off <- fix$inner_end
@@ -717,22 +801,37 @@ design_shared_deletion_primer_cores <- function(
       locs$UR$end <- fix$inner_end
     }
 
-    if (right_start_off > right_end_off) {
+    right_eff_bp <- if (!base::is.null(min_arm_bp) &&
+                       right_start_off <= right_end_off)
+      right_end_off - right_start_off + 1L else NA_integer_
+    trigger_right <- right_start_off > right_end_off ||
+      (!base::is.null(min_arm_bp) && !base::is.na(right_eff_bp) &&
+       right_eff_bp < base::as.integer(min_arm_bp))
+    if (trigger_right) {
       base::warning(sprintf(
-        "[geom] %s right-arm anchors out of order (DF.start=%d > DR.end=%d); searching full arm for a valid pair.",
-        genome_id, right_start_off, right_end_off), call. = FALSE)
+        "[geom] %s right-arm anchors %s (DF.start=%d, DR.end=%d%s); searching full arm for a valid pair.",
+        genome_id,
+        if (right_start_off > right_end_off) "out of order" else "give arm below min_arm_bp",
+        right_start_off, right_end_off,
+        if (!base::is.na(right_eff_bp)) base::sprintf(", eff=%dbp", right_eff_bp) else ""),
+        call. = FALSE)
       df_seq <- base::as.character(role_hits$DF$shared_core[1])
       if (base::is.na(df_seq) || base::nchar(df_seq) == 0) df_seq <- base::as.character(role_hits$DF$primer_core_5to3[1])
       dr_seq <- base::as.character(role_hits$DR$shared_core[1])
       if (base::is.na(dr_seq) || base::nchar(dr_seq) == 0) dr_seq <- .rc(base::as.character(role_hits$DR$primer_core_5to3[1]))
       arm_seq_r <- base::as.character(row$right_arm_seq[1])
-      fix <- fix_pair(arm_seq_r, df_seq, dr_seq, base::nchar(arm_seq_r))
+      fix <- fix_pair_or_best(arm_seq_r, df_seq, dr_seq, base::nchar(arm_seq_r))
       if (base::is.null(fix)) {
         base::warning(sprintf(
-          "[geom] %s: no valid DF/DR placement in right arm for shared cores; skipping this genome.",
+          "[geom] %s: no valid DF/DR placement in right arm; skipping this genome.",
           genome_id), call. = FALSE)
         out_rows[[i]] <- NULL
         next
+      }
+      if (!base::is.null(min_arm_bp) && fix$eff_arm < base::as.integer(min_arm_bp)) {
+        base::warning(sprintf(
+          "[geom] %s right arm: best achievable effective arm is %d bp (< min_arm_bp=%s). Kept for design but verify manually.",
+          genome_id, fix$eff_arm, base::format(min_arm_bp)), call. = FALSE)
       }
       right_start_off <- fix$outer_start
       right_end_off <- fix$inner_end
@@ -863,8 +962,19 @@ design_shared_deletion_primer_cores <- function(
     max_primer_length,
     tm_target,
     require_unique,
-    hit_count_cache
+    hit_count_cache,
+    forbidden_oligos = character(0),
+    inner_boundary_tolerance_bp = 50L,
+    overlap_policy = c("strict", "flexible"),
+    tm_window = NULL
 ) {
+  overlap_policy <- base::match.arg(overlap_policy)
+  # Under strict, inner primers (UR, DF) must abut the deletion boundary
+  # exactly (0 bp tolerance). Any non-zero value the caller supplied is
+  # honoured only in flexible mode.
+  if (overlap_policy == "strict" && boundary == "inner") {
+    inner_boundary_tolerance_bp <- 0L
+  }
   # Single strict-uniqueness pool with a generous cap (covers most roles in
   # one pass). Building the pool + Biostrings uniqueness dominates runtime,
   # so re-building several times for escalating caps was wasteful.
@@ -886,7 +996,10 @@ design_shared_deletion_primer_cores <- function(
     tm_target = tm_target,
     require_unique = require_unique,
     hit_count_cache = hit_count_cache,
-    candidate_cap = 300L
+    candidate_cap = 150L,
+    forbidden_oligos = forbidden_oligos,
+    inner_boundary_tolerance_bp = inner_boundary_tolerance_bp,
+    tm_window = tm_window
   )
   attempt <- base::tryCatch(
     .shared_select_primer_groups_from_pool(candidate_pool, genome_ids, role, reverse),
@@ -916,13 +1029,73 @@ design_shared_deletion_primer_cores <- function(
       tm_target = tm_target,
       require_unique = FALSE,
       hit_count_cache = hit_count_cache,
-      candidate_cap = 500L
+      candidate_cap = 300L,
+      forbidden_oligos = forbidden_oligos,
+      inner_boundary_tolerance_bp = inner_boundary_tolerance_bp,
+      tm_window = tm_window
     )
     attempt <- base::tryCatch(
       .shared_select_primer_groups_from_pool(candidate_pool, genome_ids, role, reverse),
       error = function(e) e
     )
     if (!inherits(attempt, "error")) return(attempt)
+  }
+  # Progressive fallback for inner roles (UR/DF): widen the inner-boundary
+  # pin step by step. Many genomes at once may have no conserved sequence
+  # close enough to the deletion edge to share a primer; widening lets a
+  # candidate survive, which the subsequent selector may still subgroup-split.
+  # Under overlap_policy == "strict", widening is FORBIDDEN: inner primers
+  # must sit at the deletion boundary. If no shared candidate exists at the
+  # boundary, the selector must subgroup-split (per-strain inner primers) or
+  # the run must fail — never relax the pin.
+  if (overlap_policy != "strict" &&
+      boundary == "inner" &&
+      !base::is.null(inner_boundary_tolerance_bp) &&
+      base::is.finite(inner_boundary_tolerance_bp)) {
+    current <- base::as.integer(inner_boundary_tolerance_bp)
+    # Try 4x, then 16x, then unlimited (NULL).
+    for (widened in base::list(current * 4L, current * 16L, NULL)) {
+      base::warning(sprintf(
+        "Role %s: widening inner_boundary_tolerance_bp from %d to %s as a last-resort to find any valid candidate.",
+        role, current,
+        if (base::is.null(widened)) "unlimited" else base::as.character(widened)),
+        call. = FALSE)
+      candidate_pool <- .shared_build_primer_candidate_pool(
+        genome_ids = genome_ids,
+        context_map = context_map,
+        dnastr_cache = dnastr_cache,
+        role = role,
+        arm_field = arm_field,
+        region = region,
+        reverse = reverse,
+        boundary = boundary,
+        preferred_bp_field = preferred_bp_field,
+        min_arm_bp = min_arm_bp,
+        max_arm_bp = max_arm_bp,
+        search_window = search_window,
+        min_primer_length = min_primer_length,
+        max_primer_length = max_primer_length,
+        tm_target = tm_target,
+        require_unique = FALSE,
+        hit_count_cache = hit_count_cache,
+        candidate_cap = 300L,
+        forbidden_oligos = forbidden_oligos,
+        inner_boundary_tolerance_bp = widened,
+        tm_window = tm_window
+      )
+      attempt <- base::tryCatch(
+        .shared_select_primer_groups_from_pool(candidate_pool, genome_ids, role, reverse),
+        error = function(e) e
+      )
+      if (!inherits(attempt, "error")) return(attempt)
+      if (!base::is.null(widened)) current <- base::as.integer(widened)
+    }
+  }
+  if (overlap_policy == "strict" && boundary == "inner") {
+    base::stop(sprintf(
+      "Role %s: no primer candidate touches the deletion boundary (0 bp tolerance) for every genome, even with subgroup-splitting. Under overlap_policy='strict' the inner primer MUST abut the deletion boundary exactly. Options: (a) remove the offending genome(s) from the target_table, (b) switch to overlap_policy='flexible', or (c) widen primer_min_length/primer_max_length so some primer fits at the boundary. Upstream error: %s",
+      role, base::conditionMessage(attempt)
+    ), call. = FALSE)
   }
   base::stop(base::conditionMessage(attempt))
 }
@@ -940,6 +1113,15 @@ design_shared_deletion_primer_cores <- function(
     arm_len - pos_start + 1L            # DR at arm_len
   } else if (role == "DR") {
     pos_start + k - 1L                  # DF at 1
+  } else if (role == "cF") {
+    # cF: colony-PCR forward primer, sits on the upstream-CHECK window
+    # (further upstream of the UF homology arm). We want it close to the
+    # right edge of the check window (i.e. near the upstream arm).
+    pos_start + k - 1L
+  } else if (role == "cR") {
+    # cR: colony-PCR reverse primer, sits on the downstream-CHECK window
+    # close to the left edge (i.e. near the downstream arm).
+    arm_len - pos_start + 1L
   } else {
     NA_integer_
   }
@@ -962,6 +1144,13 @@ design_shared_deletion_primer_cores <- function(
     pos_start - 1L
   } else if (role == "DR") {
     base::abs((pos_start + k - 1L) - preferred_bp)
+  } else if (role == "cF") {
+    # Deviation = distance from the right edge of the check window (how far
+    # the primer's 3' end lies from being adjacent to the homology arm).
+    arm_len - (pos_start + k - 1L)
+  } else if (role == "cR") {
+    # Deviation = distance from the left edge of the check window.
+    pos_start - 1L
   } else {
     NA_integer_
   }
@@ -985,7 +1174,11 @@ design_shared_deletion_primer_cores <- function(
     tm_target,
     require_unique,
     hit_count_cache,
-    candidate_cap = 20L
+    candidate_cap = 20L,
+    forbidden_oligos = character(0),
+    inner_boundary_tolerance_bp = 50L,
+    seed_prefilter_enabled = FALSE,
+    tm_window = NULL
 ) {
   # --- Vectorized k-mer scan -------------------------------------------------
   # Build a long data.frame of (genome, oligo, position, k, implied_arm, ...)
@@ -1031,13 +1224,22 @@ design_shared_deletion_primer_cores <- function(
       oligo_vec <- if (reverse) .rc_vec(core_vec) else core_vec
       implied_vec <- .shared_role_arm_length(role, pos, k, arm_len, preferred_bp)
       keep <- implied_vec >= min_arm_bp & implied_vec <= max_arm_bp
-      if (!base::any(keep)) next
       arm_dev_vec <- .shared_role_arm_dev(role, pos, k, arm_len, preferred_bp)
       if (boundary == "inner") {
         boundary_dist_vec <- if (region == "end") arm_len - (pos + k - 1L) else pos - 1L
       } else {
         boundary_dist_vec <- if (region == "start") pos - 1L else arm_len - (pos + k - 1L)
       }
+      # Pin inner-boundary roles (UR, DF) to the deletion boundary; only the
+      # outer roles (UF, DR) should have positional flexibility. Without this
+      # the outer-role search can drag the inner primer far from the start /
+      # stop codon, giving an effectively-shifted homology arm.
+      if (boundary == "inner" &&
+          !base::is.null(inner_boundary_tolerance_bp) &&
+          base::is.finite(inner_boundary_tolerance_bp)) {
+        keep <- keep & (boundary_dist_vec <= base::as.integer(inner_boundary_tolerance_bp))
+      }
+      if (!base::any(keep)) next
       parts[[base::length(parts) + 1L]] <- base::data.frame(
         core = core_vec[keep],
         oligo = oligo_vec[keep],
@@ -1052,6 +1254,64 @@ design_shared_deletion_primer_cores <- function(
     if (base::length(parts) == 0) next
     gframe <- base::do.call(base::rbind, parts)
     gframe$genome_id <- id
+
+    # Outer-role seed pre-filter (gated by `seed_prefilter_enabled`): most of
+    # the outer-role candidates sit in repetitive regions (transposons, rRNA
+    # repeats) whose 3' 15-mer also appears elsewhere in the genome. Building
+    # a PDict over the unique 15-mer seeds and running countPDict once against
+    # the whole genome lets us drop non-unique-seed positions in a single
+    # pass. Disabled by default because, for targets adjacent to mobile
+    # elements, hard-filtering by seed uniqueness can wipe out the entire
+    # outer-role candidate pool. Inner-role candidates are already pinned to
+    # a small window so no prefilter needed.
+    if (base::isTRUE(seed_prefilter_enabled) &&
+        boundary == "outer" &&
+        !base::is.null(dnastr_cache) &&
+        !base::is.null(dnastr_cache[[id]]) &&
+        base::requireNamespace("Biostrings", quietly = TRUE) &&
+        base::nrow(gframe) > 0) {
+      seed_len <- 15L
+      gdna <- dnastr_cache[[id]]
+      nc <- base::nchar(gframe$oligo)
+      seed_ok <- nc >= seed_len
+      if (base::any(seed_ok)) {
+        seeds <- base::rep(NA_character_, base::nrow(gframe))
+        seeds[seed_ok] <- base::substr(gframe$oligo[seed_ok],
+                                         nc[seed_ok] - seed_len + 1L,
+                                         nc[seed_ok])
+        seeds_valid <- seed_ok &
+          base::grepl("^[ACGTacgt]+$", base::ifelse(base::is.na(seeds), "", seeds))
+        if (base::any(seeds_valid)) {
+          useeds <- base::unique(base::toupper(seeds[seeds_valid]))
+          rc_useeds <- .rc_vec(useeds)
+          counts <- base::tryCatch({
+            pd_fwd <- Biostrings::PDict(useeds)
+            pd_rev <- Biostrings::PDict(rc_useeds)
+            f <- Biostrings::countPDict(pd_fwd, gdna)
+            r <- Biostrings::countPDict(pd_rev, gdna)
+            stats::setNames(base::as.integer(f + r), useeds)
+          }, error = function(e) NULL)
+          if (!base::is.null(counts)) {
+            cand_counts <- base::rep(NA_integer_, base::nrow(gframe))
+            cand_counts[seeds_valid] <- counts[base::toupper(seeds[seeds_valid])]
+            keep <- base::is.na(cand_counts) | cand_counts == 1L
+            # Guard against over-filtering: if fewer than ~5 % of candidates
+            # (or <50 absolute) survive, the arm is likely in a deeply
+            # repetitive region (e.g. transposon cluster) and hard-filtering
+            # by seed uniqueness would eliminate every viable primer. Keep
+            # the original pool in that case; the later uniqueness audit will
+            # still report n0 > 1 for the non-unique survivors.
+            n_before <- base::nrow(gframe)
+            n_after  <- base::sum(keep)
+            if (n_after >= 50L && n_after >= 0.05 * n_before) {
+              gframe <- gframe[keep, , drop = FALSE]
+            }
+          }
+        }
+      }
+    }
+
+    if (base::nrow(gframe) == 0) next
     per_genome_frames[[gi]] <- gframe
   }
   long <- base::do.call(base::rbind, per_genome_frames)
@@ -1063,6 +1323,10 @@ design_shared_deletion_primer_cores <- function(
   first_per_genome <- !base::duplicated(base::paste(long$oligo, long$genome_id))
   long <- long[first_per_genome, , drop = FALSE]
 
+  # Build the raw pool WITHOUT Tm / self-dimer yet -- these per-oligo
+  # evaluations dominate wall time when arm length is extended (e.g. 30 s on
+  # ~30 k candidates for Tm_NN alone). Both are needed only for the top-cap
+  # candidates that survive the fast GC/arm-based pre-rank, so we defer them.
   split_oligos <- base::split(long, long$oligo)
   raw_pool <- base::lapply(split_oligos, function(df) {
     core <- df$core[1]
@@ -1073,22 +1337,68 @@ design_shared_deletion_primer_cores <- function(
       oligo = oligo,
       genomes = df$genome_id,
       gc = gc,
-      tm_core = .safe_tm(oligo),
+      tm_core = NA_real_,  # filled after pre-rank cap
       positions = stats::setNames(df$position, df$genome_id),
       implied_arms = stats::setNames(df$implied_arm, df$genome_id),
       arm_devs = stats::setNames(df$arm_dev, df$genome_id),
       boundary_dists = stats::setNames(df$boundary_dist, df$genome_id)
     )
   })
+  # Cheap filter first -- GC only. self-dimer check runs after cap.
+  # Also drop any candidate whose reverse complement matches a partner-role
+  # oligo already selected for the SAME arm (UF<->UR, DF<->DR); otherwise the
+  # two primers bind the same arm segment and the effective arm collapses.
+  if (base::length(forbidden_oligos) > 0) {
+    forbidden_up <- base::toupper(base::as.character(forbidden_oligos))
+    raw_pool <- Filter(function(x) {
+      !(base::toupper(.rc(x$oligo)) %in% forbidden_up)
+    }, raw_pool)
+    if (base::length(raw_pool) == 0) return(base::list())
+  }
   raw_pool <- Filter(function(x) {
-    !base::is.null(x) && x$gc >= 40 && x$gc <= 70 && !.check_self_dimerization(x$oligo)
+    !base::is.null(x) && x$gc >= 40 && x$gc <= 70
   }, raw_pool)
   if (base::length(raw_pool) == 0) return(base::list())
 
-  # Lexicographic pre-ranking matches the final selector: maximize sharing,
-  # then minimize worst-case arm deviation from preferred, then mean deviation,
-  # then Tm fit, then GC, then length.
+  # Lexicographic pre-ranking (Tm intentionally omitted here; it's added as a
+  # tiebreaker only for the top-cap survivors below).
   pre_order <- base::order(
+    vapply(raw_pool, function(x) -base::length(x$genomes), numeric(1)),
+    vapply(raw_pool, function(x) base::max(x$arm_devs), numeric(1)),
+    vapply(raw_pool, function(x) base::mean(x$arm_devs), numeric(1)),
+    vapply(raw_pool, function(x) base::max(x$boundary_dists), numeric(1)),
+    vapply(raw_pool, function(x) base::abs(x$gc - 55), numeric(1)),
+    vapply(raw_pool, function(x) base::nchar(x$oligo), numeric(1))
+  )
+  # Apply a generous pre-cap multiplier so we still have room for Tm-based
+  # tiebreaking among the survivors without evaluating Tm on the full pool.
+  pre_cap <- if (base::is.na(candidate_cap)) base::length(pre_order)
+             else base::min(base::length(pre_order),
+                              base::as.integer(candidate_cap * 4L))
+  raw_pool <- raw_pool[pre_order[base::seq_len(pre_cap)]]
+
+  # Post-cap: compute Tm once per survivor and drop self-dimers.
+  raw_pool <- base::lapply(raw_pool, function(x) {
+    x$tm_core <- .safe_tm(x$oligo); x
+  })
+  raw_pool <- Filter(function(x) !.check_self_dimerization(x$oligo), raw_pool)
+  if (base::length(raw_pool) == 0) return(base::list())
+
+  # Hard Tm-window filter (used for check primers where Tm must land within a
+  # narrow band). For the main UF/UR/DF/DR design this is left NULL and Tm is
+  # used only as a scoring tiebreaker below.
+  if (!base::is.null(tm_window)) {
+    tm_window <- base::as.numeric(tm_window)
+    raw_pool <- Filter(function(x) {
+      !base::is.na(x$tm_core) &&
+        x$tm_core >= tm_window[1] &&
+        x$tm_core <= tm_window[2]
+    }, raw_pool)
+    if (base::length(raw_pool) == 0) return(base::list())
+  }
+
+  # Final rank (Tm tiebreaker included now) and hard cap to candidate_cap.
+  fine_order <- base::order(
     vapply(raw_pool, function(x) -base::length(x$genomes), numeric(1)),
     vapply(raw_pool, function(x) base::max(x$arm_devs), numeric(1)),
     vapply(raw_pool, function(x) base::mean(x$arm_devs), numeric(1)),
@@ -1098,10 +1408,24 @@ design_shared_deletion_primer_cores <- function(
     vapply(raw_pool, function(x) base::nchar(x$oligo), numeric(1))
   )
   if (!base::is.na(candidate_cap)) {
-    candidate_cap <- base::min(base::length(pre_order), candidate_cap)
-    raw_pool <- raw_pool[pre_order[base::seq_len(candidate_cap)]]
+    candidate_cap <- base::min(base::length(fine_order), candidate_cap)
+    raw_pool <- raw_pool[fine_order[base::seq_len(candidate_cap)]]
   } else {
-    raw_pool <- raw_pool[pre_order]
+    raw_pool <- raw_pool[fine_order]
+  }
+
+  # Batch-prefill the exact-hit-count cache across all (candidate, genome)
+  # pairs using Biostrings::matchPDict. Populating this once (Aho-Corasick
+  # over all candidates of the same length in a single genome pass) replaces
+  # hundreds of per-candidate matchPattern calls and dominates the wall-clock
+  # win of the role loop.
+  if (require_unique) {
+    .shared_prefill_exact_hits(
+      candidates = raw_pool,
+      context_map = context_map,
+      hit_count_cache = hit_count_cache,
+      dnastr_cache = dnastr_cache
+    )
   }
 
   pool <- base::lapply(raw_pool, function(obj) {
@@ -1217,6 +1541,76 @@ design_shared_deletion_primer_cores <- function(
   FALSE
 }
 
+# Batch exact-hit-count prefill via Biostrings::countPDict.
+#
+# Populates `hit_count_cache` for every (genome_id, oligo) pair that the
+# per-candidate loop would otherwise look up one call at a time. countPDict
+# (vs matchPDict) avoids allocating the position-list MIndex; combined with
+# a once-per-length PDict build it roughly doubles throughput on short primer
+# patterns against ~3-4 Mbp genomes.
+.shared_prefill_exact_hits <- function(candidates, context_map,
+                                       hit_count_cache, dnastr_cache) {
+  if (base::length(candidates) == 0) return(invisible(NULL))
+  if (!base::requireNamespace("Biostrings", quietly = TRUE)) return(invisible(NULL))
+  if (base::is.null(dnastr_cache)) return(invisible(NULL))
+
+  # Collect (oligo, genomes-needed) pairs; drop ambiguity-code sequences that
+  # PDict does not accept.
+  oligo_vec <- base::vapply(candidates, `[[`, character(1), "oligo")
+  genomes_vec <- base::lapply(candidates, `[[`, "genomes")
+  valid <- base::grepl("^[ACGTacgt]+$", oligo_vec)
+  if (!base::any(valid)) return(invisible(NULL))
+
+  pair_oligo  <- base::character(0)
+  pair_genome <- base::character(0)
+  for (i in base::which(valid)) {
+    oligo <- base::toupper(oligo_vec[i])
+    gids <- base::unique(base::as.character(genomes_vec[[i]]))
+    for (gid in gids) {
+      if (base::is.null(dnastr_cache[[gid]])) next
+      key <- base::paste(gid, oligo, sep = "::")
+      if (!base::exists(key, envir = hit_count_cache, inherits = FALSE)) {
+        pair_oligo  <- base::c(pair_oligo,  oligo)
+        pair_genome <- base::c(pair_genome, gid)
+      }
+    }
+  }
+  if (base::length(pair_oligo) == 0) return(invisible(NULL))
+
+  # Build one PDict (fwd + rc) per oligo length, then scan each genome.
+  klen <- base::nchar(pair_oligo)
+  for (k in base::unique(klen)) {
+    at_k <- klen == k
+    oligos_k <- base::unique(pair_oligo[at_k])
+    rc_k <- base::vapply(oligos_k, .rc, character(1), USE.NAMES = FALSE)
+    pd_fwd <- base::tryCatch(Biostrings::PDict(oligos_k), error = function(e) NULL)
+    pd_rev <- base::tryCatch(Biostrings::PDict(rc_k),     error = function(e) NULL)
+    gids_k <- base::unique(pair_genome[at_k])
+    for (gid in gids_k) {
+      gdna <- dnastr_cache[[gid]]
+      if (base::is.null(gdna)) next
+      if (!base::is.null(pd_fwd) && !base::is.null(pd_rev)) {
+        fwd <- Biostrings::countPDict(pd_fwd, gdna)
+        rev <- Biostrings::countPDict(pd_rev, gdna)
+      } else {
+        # Fallback: per-pattern countPattern when PDict is unavailable.
+        fwd <- base::vapply(oligos_k, function(o)
+          Biostrings::countPattern(Biostrings::DNAString(o), gdna, fixed = TRUE),
+          integer(1))
+        rev <- base::vapply(rc_k, function(o)
+          Biostrings::countPattern(Biostrings::DNAString(o), gdna, fixed = TRUE),
+          integer(1))
+      }
+      total <- base::as.integer(fwd + rev)
+      for (j in base::seq_along(oligos_k)) {
+        key <- base::paste(gid, oligos_k[j], sep = "::")
+        base::assign(key, total[j], envir = hit_count_cache)
+      }
+    }
+  }
+  base::invisible(NULL)
+}
+
 .shared_exact_hit_count_cached <- function(genome_id, primer_seq, context_map,
                                            hit_count_cache, dnastr_cache = NULL) {
   key <- base::paste(genome_id, primer_seq, sep = "::")
@@ -1225,12 +1619,15 @@ design_shared_deletion_primer_cores <- function(
   }
   primer_seq <- base::toupper(primer_seq)
   total <- if (!base::is.null(dnastr_cache) && !base::is.null(dnastr_cache[[genome_id]])) {
-    # Fast path: Biostrings matchPattern on pre-built DNAString, O(n+m) in C.
+    # Fast path: Biostrings countPattern on pre-built DNAString, O(n+m) in C.
+    # countPattern avoids allocating the full match-position XStringViews
+    # object that matchPattern would return, a ~1.7x saving for counts-only
+    # uniqueness queries.
     pat <- Biostrings::DNAString(primer_seq)
     pat_rc <- Biostrings::reverseComplement(pat)
-    fwd <- Biostrings::matchPattern(pat, dnastr_cache[[genome_id]], fixed = TRUE)
-    rev <- Biostrings::matchPattern(pat_rc, dnastr_cache[[genome_id]], fixed = TRUE)
-    base::as.integer(base::length(fwd) + base::length(rev))
+    fwd <- Biostrings::countPattern(pat, dnastr_cache[[genome_id]], fixed = TRUE)
+    rev <- Biostrings::countPattern(pat_rc, dnastr_cache[[genome_id]], fixed = TRUE)
+    base::as.integer(fwd + rev)
   } else {
     genome_seq <- context_map[[genome_id]]$genome_seq
     rc_seq <- .rc(primer_seq)
@@ -1244,10 +1641,23 @@ design_shared_deletion_primer_cores <- function(
   total
 }
 
-# Vectorized helpers used by the new pool builder.
+# Vectorized RC via Biostrings::DNAStringSet. Reverse-role candidate pool
+# building calls this on tens of thousands of oligos per genome; per-element
+# Biostrings::DNAString allocation (what .rc does) was ~370us/call, a batched
+# DNAStringSet is under 1us/call (~265x faster on a 10k batch). Falls back
+# to the per-element helper when Biostrings is unavailable or the batch
+# contains ambiguity codes DNAStringSet would reject.
 .rc_vec <- function(seqs) {
   if (base::length(seqs) == 0) return(character(0))
-  vapply(seqs, .rc, character(1), USE.NAMES = FALSE)
+  if (base::requireNamespace("Biostrings", quietly = TRUE)) {
+    out <- base::tryCatch(
+      base::as.character(
+        Biostrings::reverseComplement(
+          Biostrings::DNAStringSet(base::toupper(seqs)))),
+      error = function(e) NULL)
+    if (!base::is.null(out)) return(out)
+  }
+  base::vapply(seqs, .rc, character(1), USE.NAMES = FALSE)
 }
 .count_gc <- function(seq_chr) {
   base::nchar(base::gsub("[^GCgc]", "", seq_chr))
