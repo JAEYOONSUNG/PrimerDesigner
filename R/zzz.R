@@ -21,10 +21,19 @@
       "[PrimerDesigner] MMseqs2 detected at ", bin,
       " (sequence-based homolog fallback enabled).")
   } else {
-    base::packageStartupMessage(
-      "[PrimerDesigner] MMseqs2 not found — sequence-based homolog fallback ",
-      "will use the slower Biostrings engine.\n",
-      "  Install via: `brew install mmseqs2` or `conda install -c bioconda mmseqs2`.")
+    conda <- base::tryCatch(.shared_find_conda_bin(),
+                             error = function(e) NA_character_)
+    if (!base::is.na(conda) && base::nzchar(conda)) {
+      base::packageStartupMessage(
+        "[PrimerDesigner] MMseqs2 not found (Biostrings fallback will be used).\n",
+        "  Conda detected at ", conda,
+        " — run `install_mmseqs_via_conda()` to install it there.")
+    } else {
+      base::packageStartupMessage(
+        "[PrimerDesigner] MMseqs2 not found — sequence-based homolog fallback ",
+        "will use the slower Biostrings engine.\n",
+        "  Install via: `brew install mmseqs2` or `conda install -c bioconda mmseqs2`.")
+    }
   }
 }
 
@@ -46,6 +55,76 @@ find_mmseqs_binary <- function(refresh = FALSE) {
         base::file.exists(cached)) return(cached)
   }
   .shared_cache_mmseqs_path(verbose = FALSE)
+}
+
+#' Locate a conda-family executable (conda / mamba / micromamba)
+#'
+#' Probes the user's PATH plus every common miniforge / mambaforge /
+#' miniconda / anaconda install prefix. Prefers `mamba` / `micromamba`
+#' over `conda` when available (much faster solver).
+#' @keywords internal
+.shared_find_conda_bin <- function() {
+  for (exe in base::c("micromamba", "mamba", "conda")) {
+    bin <- base::Sys.which(exe)
+    if (base::nzchar(bin) && base::file.exists(bin))
+      return(base::unname(bin))
+  }
+  home <- base::Sys.getenv("HOME", "")
+  for (exe in base::c("micromamba", "mamba", "conda")) {
+    for (prefix in base::c("miniforge3", "mambaforge", "miniconda3",
+                             "anaconda3", "opt/anaconda3",
+                             "Library/r-miniconda-arm64",
+                             "Library/r-miniconda")) {
+      cand <- base::file.path(home, prefix, "bin", exe)
+      if (base::file.exists(cand)) return(cand)
+    }
+  }
+  NA_character_
+}
+
+#' Install MMseqs2 into the user's conda environment
+#'
+#' Convenience wrapper that calls the detected conda-family binary
+#' (`micromamba` / `mamba` / `conda`, picked in that order) to install
+#' MMseqs2 from the bioconda channel. When `env_name` is supplied the
+#' package lands in that env; otherwise the base env is used.
+#'
+#' @param env_name Optional conda environment name. `NULL` (default)
+#'   installs into the base env; supply a name to target a dedicated env.
+#'   The env will be created if it doesn't exist.
+#' @param channel Conda channel to pull from. Default "bioconda".
+#' @param refresh Whether to re-probe the `mmseqs` binary cache after
+#'   install. Default `TRUE`.
+#' @return Path to the freshly installed `mmseqs` binary, or
+#'   `NA_character_` on failure.
+#' @export
+install_mmseqs_via_conda <- function(env_name = NULL,
+                                      channel = "bioconda",
+                                      refresh = TRUE) {
+  conda <- .shared_find_conda_bin()
+  if (base::is.na(conda)) {
+    base::stop("No conda / mamba / micromamba binary found. ",
+               "Install miniforge, miniconda or anaconda first, or use ",
+               "`brew install mmseqs2`.")
+  }
+  # Create env if specified and missing.
+  if (!base::is.null(env_name) && base::nzchar(env_name)) {
+    env_list <- base::suppressWarnings(base::system2(
+      conda, base::c("env", "list"), stdout = TRUE, stderr = TRUE))
+    if (!base::any(base::grepl(base::paste0("^", env_name, "\\s"), env_list))) {
+      base::message("[PrimerDesigner] creating conda env '", env_name, "' ...")
+      base::system2(conda, base::c("create", "-y", "-n", env_name,
+                                     "-c", channel, "mmseqs2"))
+    } else {
+      base::system2(conda, base::c("install", "-y", "-n", env_name,
+                                     "-c", channel, "mmseqs2"))
+    }
+  } else {
+    base::message("[PrimerDesigner] installing mmseqs2 into base env via ",
+                   base::basename(conda), " ...")
+    base::system2(conda, base::c("install", "-y", "-c", channel, "mmseqs2"))
+  }
+  if (base::isTRUE(refresh)) find_mmseqs_binary(refresh = TRUE) else NA_character_
 }
 
 #' @keywords internal
