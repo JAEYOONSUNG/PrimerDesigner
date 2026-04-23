@@ -47,6 +47,15 @@
   if (!base::nzchar(py_src) || !base::file.exists(py_src)) {
     base::stop("bundled dna_editor.py not found in PrimerDesigner package")
   }
+  # Expand ~ and relative paths — Python's open() doesn't grok R's ~
+  # convention and chokes on "~/Desktop/...".
+  plasmid_path <- base::path.expand(base::normalizePath(plasmid_path,
+                                                          mustWork = TRUE))
+  output_path  <- base::path.expand(output_path)
+  # Ensure destination directory exists (R's path.expand doesn't create).
+  out_dir <- base::dirname(output_path)
+  if (!base::dir.exists(out_dir))
+    base::dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   ed <- reticulate::py_run_file(py_src, convert = TRUE)
   ed$build_combined_construct(plasmid_path, output_path,
                                 edits, new_features, new_primers)
