@@ -203,7 +203,7 @@ Single command that uses the test genomes shipped with the package (`inst/extdat
 Rscript -e 'library(PrimerDesigner)
 extdata <- system.file("extdata", package = "PrimerDesigner")
 plasmid <- file.path(extdata, "plasmid/pG1Kt-GeoCas9EF-OA-HDVrbz-sfGFP-ACrec.dna")
-out_dir <- "~/Desktop/jetD_out"; construct_dir <- file.path(out_dir, "constructs")
+out_dir <- "~/Desktop/PD_result"; construct_dir <- file.path(out_dir, "constructs")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 targets <- find_target_across_genomes(
@@ -240,22 +240,22 @@ The same block runs under `source()` from an R session or from `Rscript my_desig
 ```
                     design_grna_and_deletion()
                               │
-         ┌────────────────────┼────────────────────┐
+         ┌────────────────────┼────────────────────-┐
          │      All steps run automatically         │
          │                    │                     │
          ▼                    ▼                     ▼
-  ┌──────────────┐  ┌─────────────────┐  ┌────────────────┐
-  │ Genome Setup │  │ gRNA Library    │  │ Primer Design  │
-  │ (auto-build) │  │                 │  │                │
-  ├──────────────┤  ├─────────────────┤  ├────────────────┤
-  │ .fna download│  │ findSpacers     │  │ gRNA cloning   │
-  │ .gbff download│ │ Off-target n0/n1│  │  ├─ Golden Gate│
-  │ BSgenome build│ │ Composite score │  │  └─ Gibson     │
-  │ Bowtie index │  │ Methylation     │  │ Deletion arms  │
-  └──────────────┘  │ filtering       │  │ (4-primer)     │
-                    └─────────────────┘  │ Combined GenBank│
-                                         │ Excel output   │
-                                         └────────────────┘
+  ┌───────────────┐ ┌─────────────────┐ ┌─────────────────┐
+  │ Genome Setup  │ │ gRNA Library    │ │ Primer Design   │
+  │ (auto-build)  │ │                 │ │                 │
+  ├───────────────┤ ├─────────────────┤ ├─────────────────┤
+  │ .fna download │ │ findSpacers     │ │ gRNA cloning    │
+  │ .gbff download│ │ Off-target n0/n1│ │  ├─ Golden Gate │
+  │ BSgenome build│ │ Composite score │ │  └─ Gibson      │
+  │ Bowtie index  │ │ Methylation     │ │ Deletion arms   │
+  └───────────────┘ │ filtering       │ │ (4-primer)      │
+                    └─────────────────┘ │ Combined GenBank│
+                                        │ Excel output    │
+                                        └─────────────────┘
 ```
 
 **Internal call chain:**
