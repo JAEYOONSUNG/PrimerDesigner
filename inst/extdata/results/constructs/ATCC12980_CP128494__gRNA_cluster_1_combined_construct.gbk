@@ -1,0 +1,1202 @@
+LOCUS  ._ATCC12980_CP128494__gRNA_cluster_1  13084 bp  bp  DNA  circular  UNK  01-JAN-1980
+DEFINITION  .
+ACCESSION   <unknown id>
+VERSION     <unknown id>
+KEYWORDS    .
+SOURCE      .
+  ORGANISM  .
+            .
+FEATURES             Location/Qualifiers
+     promoter        complement(7892..7922)
+                     /note="promoter for the E. coli lac operon"
+                     /note="color: #ffffff"
+                     /label="lac promoter"
+     protein_bind    7937..7958
+                     /bound_moiety="E. coli catabolite activator protein"
+                     /note="CAP binding activates transcription in the presence
+                     of cAMP."
+                     /note="color: #31849b"
+                     /label="CAP binding site"
+     protein_bind    7868..7884
+                     /bound_moiety="lac repressor encoded by lacI"
+                     /note="The lac repressor binds to the lac operator to
+                     inhibit transcription in E. coli. This inhibition can be
+                     relieved by adding lactose or
+                     isopropyl-β-D-thiogalactopyranoside (IPTG)."
+                     /note="color: #31849b"
+                     /label="lac operator"
+     rep_origin      complement(12496..13084)
+                     /direction=LEFT
+                     /note="high-copy-number ColE1/pMB1/pBR322/pUC origin of
+                     replication"
+                     /note="color: #ffff00"
+                     /label="ori"
+     primer_bind     complement(7844..7860)
+                     /note="common sequencing primer, one of multiple similar
+                     variants"
+                     /note="color: #a020f0"
+                     /label="M13 rev"
+     CDS             6510..7280
+                     /codon_start=1
+                     /transl_table=1
+                     /translation="MRIVNGPIIMTREERMKIVHEIKERILDKYGDDVKAIGVYGSLGR
+                     QTDGPYSDIEMMCVMSTEEAEFSHEWTTGEWKVEVNFYSEEILLDYASQVESDWPLTHG
+                     QFFSILPIYDSGGYLEKVYQTAKSVEAQKFHDAICALIVEELFEYAGKWRNIRVQGPTT
+                     FLPSLTVQVAMAGAMLIGLHHRICYTTSASVLTEAVKQSDLPSGYDHLCQFVMSGQLSD
+                     SEKLLESLENFWNGIQEWTERHGYIVDVSKRIPF*"
+                     /label="KanR"
+                     /note="color: #ff9380"
+     source          6138..6509
+                     /db_xref="taxon"
+                     /mol_type="genomic DNA"
+                     /organism="Geobacillus stearothermophilus"
+                     /strain="EF60045"
+                     /label="source"
+                     /note="color: #ffffff"
+     misc_feature    6138..6509
+                     /label="PIgG (EF60045_003421)"
+                     /note="color: #a6acb3"
+     misc_feature    7562..7581
+                     /note="spacer removable by BaeI digestion"
+                     /note="color: #99ccff"
+                     /label="sgRNA"
+     misc_feature    7562..7581
+                     /label="sgRNA_scaffold start loop"
+                     /note="color: #4eb39f"
+     misc_feature    7562..7577
+                     /label="repeat sequence"
+                     /note="color: #00ff00"
+     source          7582..7652
+                     /db_xref="taxon"
+                     /mol_type="genomic DNA"
+                     /organism="Geobacillus stearothermophilus"
+                     /strain="EF60045"
+                     /label="source"
+                     /note="color: #ffffff"
+     misc_feature    7582..7597
+                     /label="tracrRNA"
+                     /note="color: #00ff00"
+     misc_feature    7598..7652
+                     /label="loop2"
+                     /note="color: #a6acb3"
+     misc_feature    7578..7581
+                     /label="linker"
+                     /note="color: #a6acb3"
+     misc_feature    7562..7652
+                     /label="EF60045_template"
+                     /note="color: #ffcc99"
+     misc_feature    6456..6464
+                     /label="-10"
+                     /note="color: #a6acb3"
+     misc_feature    6434..6439
+                     /label="-35"
+                     /note="color: #a6acb3"
+     source          7415..7524
+                     /db_xref="taxon"
+                     /mol_type="genomic DNA"
+                     /organism="Geobacillus stearothermophilus"
+                     /strain="EF60045"
+                     /label="source"
+                     /note="color: #ffffff"
+     gene            7415..7492
+                     /locus_tag="EF60045_003295"
+                     /label="EF60045_003295"
+                     /note="color: #a6acb3"
+     CDS             7415..7492
+                     /codon_start=1
+                     /inference="COORDINATES"
+                     /locus_tag="EF60045_003295"
+                     /note="Derived by automated computational analysis using  
+                     gene prediction method: Protein Homology."
+                     /note="color: #993366"
+                     /product="glutaredoxin family protein"
+                     /protein_id="extdb:EF60045_003295"
+                     /transl_table=11
+                     /translation="DGEEIGYGMIEKEMVRKRLRQVRNS*"
+                     /label="EF60045_003295"
+     misc_feature    7415..7524
+                     /label="PcggR"
+                     /note="color: #a6acb3"
+     misc_feature    7509..7517
+                     /label="-10"
+                     /note="color: #a6acb3"
+     misc_feature    7489..7494
+                     /label="-35"
+                     /note="color: #a6acb3"
+     terminator      7755..7801
+                     /note="transcription terminator T1 from the E. coli rrnB
+                     gene"
+                     /note="color: #ffffff"
+                     /label="rrnB T1 terminator"
+     misc_feature    7653..7674
+                     /label="tracrRNA"
+                     /note="color: #3366ff"
+     misc_feature    7284..7397
+                     /label="MCS"
+                     /note="color: #aa7942"
+     terminator      11729..11785
+                     /label="terminator"
+                     /note="color: #333333"
+     source          8010..9229
+                     /db_xref="taxon"
+                     /isolation_source="isolated from the deepest Ocean"
+                     /mol_type="genomic DNA"
+                     /note="thermophile"
+                     /note="color: #ffffff"
+                     /organism="Geobacillus kaustophilus HTA426"
+                     /strain="HTA426"
+                     /label="thermophile"
+     gene            complement(8010..9104)
+                     /gene="araR"
+                     /locus_tag="GK1907"
+                     /label="araR"
+                     /note="color: #a6acb3"
+     CDS             complement(8010..9104)
+                     /codon_start=1
+                     /gene="araR"
+                     /locus_tag="GK1907"
+                     /product="arabinose metabolism transcriptional repressor"
+                     /protein_id="BAD76192.1"
+                     /transl_table=11
+                     /translation="MKEKTLPKYLQLKQEILSWIISGQMKPDEKIPTEHEIANQFQLSR
+                     HTVRQALGELEKEGWLYKIQGSGTFVSRPKPKEQVDTKTIGIVTTYISDYIFPHIVRGA
+                     EETLREKGYRLLLASTNNDKQREKEQLEEMIREPLSGLIIEPTKSAQGNPNLGYYLSLN
+                     NLHIPYVMINARYLEVSCPCVKMDDEQGGFLLTDHLIRLGHRRIAGFFKTDDLQGVDRL
+                     RGFIRAHQQHEVPVATEYLLSYATEEKWTKPLEVAREFLQRPKEERPTAFVCYNDELAI
+                     LLLEVIRQQGLSVPDDISIVGFDDSTFATATEVKLTTIRHPKTEMGVQAAEMLIQMIEQ
+                     RSVDKIGDIIYRPELIVRNSTKEI*"
+                     /label="GKaraR"
+                     /note="color: #ccffff"
+     misc_feature    9147..9155
+                     /label="-10"
+                     /note="color: #a6acb3"
+     misc_feature    9171..9176
+                     /label="-35"
+                     /note="color: #a6acb3"
+     source          9230..9322
+                     /db_xref="taxon"
+                     /isolation_source="isolated from the deepest Ocean"
+                     /mol_type="genomic DNA"
+                     /note="thermophile"
+                     /note="color: #ffffff"
+                     /organism="Geobacillus kaustophilus HTA426"
+                     /strain="HTA426"
+                     /label="thermophile"
+     misc_feature    9265..9278
+                     /label="araR operator"
+                     /note="color: #33cccc"
+     misc_feature    9258..9263
+                     /label="-35"
+                     /note="color: #a6acb3"
+     misc_feature    9278..9286
+                     /label="-10"
+                     /note="color: #a6acb3"
+     misc_feature    9230..9322
+                     /label="GK_paraD upstream 93"
+                     /note="color: #cc99ff"
+     source          9323..11728
+                     /db_xref="taxon"
+                     /mol_type="genomic DNA"
+                     /organism="Acidithiobacillus caldus SM-1"
+                     /strain="SM-1"
+                     /label="source"
+                     /note="color: #ffffff"
+     gene            9323..10207
+                     /gene="bet"
+                     /label="bet"
+                     /locus_tag="ATC_RS06460"
+                     /old_locus_tag="Atc_1291"
+                     /note="color: #a6acb3"
+     CDS             9323..10207
+                     /GO_function="GO:0003677 - DNA binding [Evidence IEA]"
+                     /GO_process="GO:0006259 - DNA metabolic process [Evidence
+                     IEA]"
+                     /codon_start=1
+                     /gene="bet"
+                     /inference="COORDINATES"
+                     /label="bet"
+                     /locus_tag="ATC_RS06460"
+                     /note="Derived by automated computational analysis using  
+                     gene prediction method: Protein Homology."
+                     /note="color: #ff7e79"
+                     /old_locus_tag="Atc_1291"
+                     /product="phage recombination protein Bet"
+                     /protein_id="WP_014002807.1"
+                     /transl_table=11
+                     /translation="MNAVVQSKKSQSITTIPALEMSEQELISVLENSIYPGASRESIKM
+                     AISYCAAAKLDPLQKPVHIVPMWDTKAKRMRDVILPGIGLYRTQAARSGEYAGVSEPEF
+                     GEDVTETIGGVKVTYPKWCKATVKRRLPSGEIVEFSAKEFWKENYAVKGGQEKSIAPNA
+                     MWAKRPYGQLAKCAEAQALRKAFPELGAQPTAEEMQGSTIETSEVIDGQTGEIIQVQKS
+                     PARPALEPYPEEYFRQNLPKWKDLVESGKRSADDILAMIRSKATLTSEQEAAIRSLSHP
+                     DGSTEDFAEVGEE*"
+     gene            10211..11728
+                     /label="ATC_RS06465"
+                     /locus_tag="ATC_RS06465"
+                     /old_locus_tag="Atc_1292"
+                     /note="color: #a6acb3"
+     CDS             10211..11728
+                     /codon_start=1
+                     /inference="COORDINATES"
+                     /label="ATC_RS06465"
+                     /locus_tag="ATC_RS06465"
+                     /note="Derived by automated computational analysis using  
+                     gene prediction method: Protein Homology."
+                     /note="color: #ff7e79"
+                     /old_locus_tag="Atc_1292"
+                     /product="YqaJ viral recombinase family protein"
+                     /protein_id="WP_014002808.1"
+                     /transl_table=11
+                     /translation="MLRYHDVEQGSPDWLSLRLRHFTGSEAPAMMGVSPYLGRNELLRQ
+                     KATGMVPEVDAATQVIFDAGHAAEAAIRPAAEQIVGEELFPGTCSRDVDGLPLLASLDG
+                     LTMDGSVVWENKLKNAETIAYIAEHGEPPLHHVWQLEHQLLVTGAEKALFTCGTDGEDF
+                     VRCWYESRPERREAILAGWKRFAEDLASYTPRPDEYEFIGVAPDRLPALHVAVSGRILA
+                     SNIAEWRDRTLEILAGIPRDLHTDQDFANAEETIRWAKEALDRIAVVKDAVLAQMPDVE
+                     QMFRSLDDIGEALGRTVKDLDGLVKVRKDNIRLEMVQKAAESVRAHYDALALELGAYAP
+                     TMPSALLAELGASIKGTRTAKAAAAKLDSAVAQAKIAADKEANRLRTAQRLFADAAARV
+                     GVDLWPDGPTLAKTMDEDALLGVIARRVNAHRSQGSRPTAKASKTLTLDAICARIAPLG
+                     ITKAGLAQLGFAPLPDGGYLEADFPKICAALVATLQSAAKDEVADAA*"
+     gene            11718..11728
+                     /label="ATC_RS16400"
+                     /locus_tag="ATC_RS16400"
+                     /old_locus_tag="Atc_1293"
+                     /note="color: #a6acb3"
+     CDS             11718..11728
+                     /codon_start=1
+                     /inference="COORDINATES"
+                     /label="ATC_RS16400"
+                     /locus_tag="ATC_RS16400"
+                     /note="Derived by automated computational analysis using  
+                     gene prediction method: Protein Homology."
+                     /note="color: #993366"
+                     /old_locus_tag="Atc_1293"
+                     /product="DUF1289 domain-containing protein"
+                     /protein_id="WP_014002809.1"
+                     /transl_table=11
+                     /translation="MPP"
+     misc_feature    11264
+                     /label="T::V"
+                     /note="color: #a6acb3"
+     misc_feature    11726
+                     /label="T>V"
+                     /note="color: #a6acb3"
+     misc_feature    11297
+                     /label="A::Y"
+                     /note="color: #a6acb3"
+     misc_feature    9831
+                     /label="A::C"
+                     /note="color: #a6acb3"
+     misc_feature    9866
+                     /label="A::B"
+                     /note="color: #a6acb3"
+     misc_feature    10004
+                     /label="A::B"
+                     /note="color: #a6acb3"
+     misc_feature    11852
+                     /label="T::C"
+                     /note="color: #a6acb3"
+     misc_feature    9743
+                     /label="G::A"
+                     /note="color: #a6acb3"
+     misc_feature    9773
+                     /label="G::A"
+                     /note="color: #a6acb3"
+     misc_feature    9794
+                     /label="C::R"
+                     /note="color: #a6acb3"
+     misc_feature    9809
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    9971
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10007
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10118
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10190
+                     /label="T::G"
+                     /note="color: #a6acb3"
+     misc_feature    10301
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10307
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10334
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10094
+                     /label="T::G"
+                     /note="color: #a6acb3"
+     misc_feature    10895
+                     /label="T::G"
+                     /note="color: #a6acb3"
+     misc_feature    10898
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10454
+                     /label="T::G"
+                     /note="color: #a6acb3"
+     misc_feature    10604
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10757
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10790
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    11219
+                     /label="T::G"
+                     /note="color: #a6acb3"
+     misc_feature    11810
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    11579
+                     /label="A::G"
+                     /note="color: #a6acb3"
+     misc_feature    11588
+                     /label="A::G"
+                     /note="color: #a6acb3"
+     misc_feature    11594
+                     /label="A::C"
+                     /note="color: #a6acb3"
+     misc_feature    11645
+                     /label="A::G"
+                     /note="color: #a6acb3"
+     misc_feature    11663
+                     /label="T::C"
+                     /note="color: #a6acb3"
+     misc_feature    11822
+                     /label="A::G"
+                     /note="color: #a6acb3"
+     misc_feature    11885
+                     /label="A::C"
+                     /note="color: #a6acb3"
+     misc_feature    11963
+                     /label="A::C"
+                     /note="color: #a6acb3"
+     misc_feature    10124
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10244
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10559
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10694
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10784
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10808
+                     /label="T::C"
+                     /note="color: #a6acb3"
+     misc_feature    10889
+                     /label="C::G"
+                     /note="color: #a6acb3"
+     misc_feature    10976
+                     /label="T::C"
+                     /note="color: #a6acb3"
+     misc_feature    11180
+                     /label="A::G"
+                     /note="color: #a6acb3"
+     misc_feature    11405
+                     /label="T::C"
+                     /note="color: #a6acb3"
+     misc_feature    11717
+                     /label="T::C"
+                     /note="color: #a6acb3"
+     misc_feature    11921
+                     /label="T::C"
+                     /note="color: #a6acb3"
+     misc_feature    10457
+                     /label="T::C"
+                     /note="color: #a6acb3"
+     misc_feature    10823
+                     /label="T::C"
+                     /note="color: #a6acb3"
+     terminator      3766..3793
+                     /note="phage T7 early transcription terminator"
+                     /note="color: #ffffff"
+                     /label="T7Te terminator"
+     terminator      3679..3750
+                     /note="transcription terminator T1 from the E. coli rrnB
+                     gene"
+                     /note="color: #ffffff"
+                     /label="rrnB T1 terminator"
+     misc_feature    8939..8952
+                     /label="CGANNNNNNNTARC"
+                     /note="color: #a6acb3"
+     source          7525..7540
+                     /db_xref="taxon"
+                     /mol_type="genomic DNA"
+                     /organism="Geobacillus stearothermophilus"
+                     /strain="EF60045"
+                     /label="source"
+                     /note="color: #ffffff"
+     misc_feature    7525..7540
+                     /label="PcggR"
+                     /note="color: #a6acb3"
+     promoter        7807
+                     /label="0.86723 promoter"
+                     /note="color: #ffffff"
+     oriT            11938..12047
+                     /note="incP origin of transfer"
+                     /note="color: #a6acb3"
+                     /label="oriT"
+     CDS             5154..6026
+                     /codon_start=1
+                     /transl_table=1
+                     /translation="MYIITSEQFTQLKEIERVTDFVYKRRKIKNELMERIADALGRKFR
+                     KAQKTTRVIDEIVWLATDRGFSFPGRETLAKKLGVSLPTVDRATRMLKDSGEVVVCYRE
+                     NPNSNGPKTPVFIFRSHANFERIAAVLNLRDNEADKVENAEKPTESSDLARKTDATISS
+                     PVEKHDDINKLIDNTHPLDKIVKYVTIKVNEVQKRHPYGIRYLSAYINKTLDDLMQRAK
+                     AKVKAEKARAQQRKQADYQPTATGLIWYDFTADTSASQPTSQRKPAFDSEDMFAPLLQA
+                     VARIKGVEV*"
+                     /label="repBST1"
+                     /note="color: #65b39d"
+     source          77..370
+                     /db_xref="taxon"
+                     /mol_type="genomic DNA"
+                     /organism="Geobacillus stearothermophilus"
+                     /strain="EF60045"
+                     /label="source"
+                     /note="color: #ffffff"
+     misc_feature    77..370
+                     /label="Pgap"
+                     /note="color: #a6acb3"
+     misc_feature    333..341
+                     /label="-10"
+                     /note="color: #a6acb3"
+     gene            77..322
+                     /label="EF60045_003294"
+                     /locus_tag="EF60045_003294"
+                     /note="color: #a6acb3"
+     CDS             77..322
+                     /codon_start=1
+                     /inference="COORDINATES"
+                     /label="EF60045_003294"
+                     /locus_tag="EF60045_003294"
+                     /note="Derived by automated computational analysis using  
+                     gene prediction method: Protein Homology."
+                     /note="color: #993366"
+                     /product="sugar-binding transcriptional regulator"
+                     /protein_id="extdb:EF60045_003294"
+                     /transl_table=11
+                     /translation="ENIIARHAVAEAFGYYFNEQGDVVHKVKTVGIQLEHLPHVEHVIA
+                     VAGGASKAKAIRAYMKRAPHSLLVTDEGAAKALVGE*"
+     misc_feature    308..313
+                     /label="-35"
+                     /note="color: #a6acb3"
+     promoter        93..132
+                     /gene="0.75282"
+                     /label="0.75282 promoter"
+                     /note="color: #ffffff"
+     source          392..3655
+                     /db_xref="taxon"
+                     /mol_type="genomic DNA"
+                     /organism="Geobacillus stearothermophilus"
+                     /strain="EF60045"
+                     /label="source"
+                     /note="color: #ffffff"
+     gene            3585..3655
+                     /gene="cas1"
+                     /locus_tag="EF60045_000347"
+                     /label="cas1"
+                     /note="color: #a6acb3"
+     CDS             3585..3655
+                     /codon_start=1
+                     /gene="cas1"
+                     /inference="COORDINATES"
+                     /locus_tag="EF60045_000347"
+                     /note="Derived by automated computational analysis using  
+                     gene prediction method: Protein Homology.   GO_function:
+                     GO:0003676 - nucleic acid binding [Evidence IEA];  
+                     GO_function: GO:0004520 - endodeoxyribonuclease activity
+                     [Evidence IEA];   GO_function: GO:0046872 - metal ion
+                     binding [Evidence IEA];   GO_process: GO:0043571 -
+                     maintenance of CRISPR repeat elements [Evidence IEA];  
+                     GO_process: GO:0051607 - defense response to virus
+                     [Evidence IEA]"
+                     /note="color: #993366"
+                     /product="type II CRISPR-associated endonuclease Cas1"
+                     /protein_id="extdb:EF60045_000347"
+                     /transl_table=11
+                     /translation="LGWRHLLIRKPGKLSVRYNQLVI"
+                     /label="cas1"
+     gene            392..3655
+                     /gene="cas9"
+                     /locus_tag="EF60045_000348"
+                     /label="cas9"
+                     /note="color: #a6acb3"
+     CDS             392..3655
+                     /codon_start=1
+                     /gene="cas9"
+                     /inference="COORDINATES"
+                     /locus_tag="EF60045_000348"
+                     /note="Cas9, originally named Csn1, is the large,
+                     multifunctional signature protein of type II CRISPR/Cas
+                     systems. It is well known even to general audiences because
+                     its RNA-guided endonuclease activity has made it a popular
+                     tool for custom editing of eukaryotic genomes; Derived by
+                     automated computational analysis using gene prediction
+                     method: Protein Homology.   GO_component: GO:0005575 -
+                     cellular_component [Evidence IEA];   GO_function:
+                     GO:0004520 - endodeoxyribonuclease activity [Evidence IEA];
+                     GO_process: GO:0043571 - maintenance of CRISPR repeat
+                     elements [Evidence IEA]"
+                     /note="color: #ff9900"
+                     /product="type II CRISPR RNA-guided endonuclease Cas9"
+                     /protein_id="extdb:EF60045_000348"
+                     /transl_table=11
+                     /translation="MRYKIGLDIGITSVGWAVINLDIPRIEDLGVRIFERAENPQTGES
+                     LALPRRLARSARRRLRRRKHRLERIRRLVIREGILTKEELDKLFEEKHEIDVWQLRVEA
+                     LDRKLNNDELARVLLHLAKRRGFKSNRKSERSNKENSTMLKHIEENRAILSGYRTVGEM
+                     IVKDPKFALHKRNKGENYTNTIARDDLEHEIRLIFSKQREFGNMSCTEKFENEYITIWA
+                     SQRPVASKDDIEKKVGFCTFEPKEKRAPKATYTFQSFIAWEHINKLRLISPSGTRGLTD
+                     EERRLLYEQAFQKNKITYHDIWTLLRLPDDIYFKGIVYDWGESLKQNENIRFLELDAYH
+                     QIRKAVDKVYGKGKSSSFLPIDFDTFGYALTLFKDDADIHSYLRNEYEQNGKRMPNLAN
+                     KVYDNELIEELLNLSFTKFGHLSLKALRSILPYMEQGEVYSSACERAGYTFTGPKKKQK
+                     TMLLPNIPPIANPVVMRALTQARKVVNAIIKKYGSPVSIHIELARDLSQTFDERRKTKE
+                     EQDENRKKNETAIRQLMEYGLTLNPTGHDIVKFKLWSEQNGRCAYSLQPIEIERLLEPG
+                     YVEVDHVIPYSRSLDDSYTNKVLVLTRENREKGNRIPAEYLGVGTERWQQFETFVLTNK
+                     QFSKKKRDRLLQLHYDENEETEFKNRNLNDTRYISRFFANFIREHLKFAESDDKQKVYT
+                     VNGRVTAHLRSRWEFNKNREESDLHHAVDAVIVACTTPSDIAKITAFYQRREQNKELAK
+                     KTEPHFPQPWPHFADELRARLSKHPKESIKALNLGNYDDQKLESLQPVFVSRMPKRSVT
+                     GAAHQETLRRYVGIDERSGKIQTVVKTKLSEIKLDASGHFPMYGKESDPRTYEAIRQRL
+                     LEHNNDPKKAFQEPLYKPKKNGEPGPIIRTVKIIDTKNQVIPLNDGKTVAYNSNIVRVD
+                     VFEKDGKYYCVPVYTMDIMKGILPNKAIEPNKPYSEWKEMTEDYTFRFSLYPNDLIRIE
+                     LPREKTVKTTTGEEINVKDVFVYYKTIDSATGGLELISHDNRFSLRGVGSRTLKRFEKY
+                     QVDVLGNIYKVRGEKRVGLASSAHSKTGETIRPLQSTRD*"
+                     /label="GeoEF_cas9"
+     misc_feature    7857
+                     /label="Del"
+                     /note="color: #a6acb3"
+     misc_feature    7864
+                     /label="Del"
+                     /note="color: #a6acb3"
+     ncRNA           7675..7742
+                     /ncRNA_class="ribozyme"
+                     /product="hepatitis delta virus self-cleaving ribozyme
+                     (Ferré-D'Amaré and Scott, 2010)"
+                     /label="HDV ribozyme"
+                     /note="color: #8fbc8f"
+     primer_bind     complement(12325..12341)
+                     /label="L4440"
+                     /note="color: #a020f0"
+                     /note="sequence: AGCGAGTCAGTGAGCGAG"
+                     /note="L4440 vector, forward primer"
+     primer_bind     3469..3477
+                     /label="M13 Reverse"
+                     /note="color: #a020f0"
+                     /note="sequence: CAGGAAACAGCTATGAC"
+                     /note="In lacZ gene. Also called M13-rev"
+     primer_bind     complement(7844..7859)
+                     /label="M13 Reverse"
+                     /note="color: #a020f0"
+                     /note="sequence: CAGGAAACAGCTATGAC"
+                     /note="In lacZ gene. Also called M13-rev"
+     primer_bind     complement(7857..7878)
+                     /label="M13/pUC Reverse"
+                     /note="color: #a020f0"
+                     /note="sequence: AGCGGATAACAATTTCACACAGG"
+                     /note="In lacZ gene"
+     primer_bind     complement(8472..8497)
+                     /label="pBR322ori-F"
+                     /note="color: #a020f0"
+                     /note="sequence: GGGAAACGCCTGGTATCTTT"
+                     /note="pBR322 origin, forward primer"
+     primer_bind     complement(12576..12594)
+                     /label="pBR322ori-F"
+                     /note="color: #a020f0"
+                     /note="sequence: GGGAAACGCCTGGTATCTTT"
+                     /note="pBR322 origin, forward primer"
+     primer_bind     4772..4789
+                     /label="pBRforEco"
+                     /note="color: #a020f0"
+                     /note="sequence: AATAGGCGTATCACGAGGC"
+                     /note="pBR322 vectors, upsteam of EcoRI site, forward
+                     primer"
+     primer_bind     6027..6053
+                     /label="pG1 (to del repBST1) inv F"
+                     /note="color: #a020f0"
+                     /note="sequence: cacactcgttttaaggcgtctaacaggc"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(5131..5152)
+                     /label="pG1 (to del repBST1) inv R"
+                     /note="color: #a020f0"
+                     /note="sequence: ttccgttctcctcccgtttctcc"
+                     /note="<html><body></body></html>"
+     primer_bind     7281..7299
+                     /label="pG1_kanR_inverse"
+                     /note="color: #a020f0"
+                     /note="sequence: taaggcgcgcctctacggac"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(6109..6136)
+                     /label="pG1_P-antibiotics_inv_R"
+                     /note="color: #a020f0"
+                     /note="sequence: gtttaaactcataatcggcgtatatcgcg"
+                     /note="<html><body></body></html>"
+     primer_bind     10580..10590
+                     /label="pG1_P-antibiotics_inv_R"
+                     /note="color: #a020f0"
+                     /note="sequence: gtttaaactcataatcggcgtatatcgcg"
+                     /note="<html><body></body></html>"
+     primer_bind     6510..6545
+                     /label="kanR_intact_F"
+                     /note="color: #a020f0"
+                     /note="sequence: atgagaatagtgaatggaccaataataatgactagag"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(6476..6528)
+                     /label="PigG_R (kanR_hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     ggtccattcactattctcataaagcctaaaatcccccttcatttttatgaaact"
+                     /note="<html><body></body></html>"
+     primer_bind     6118..6164
+                     /label="PigG_F (pG1 hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     cgccgattatgagtttaaactgtttttgcacaaaatgtttgccaacca"
+                     /note="<html><body></body></html>"
+     primer_bind     7397..7441
+                     /label="PccgR_F (pRplsWT_upstream_hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     ctcgagtacgcctgcagggacggggaagaaatcgggtatgggatga"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(7397..7413)
+                     /label="pRplsWT_R"
+                     /note="color: #a020f0"
+                     /note="sequence: cctgcaggcgtactcgag"
+                     /note="<html><body></body></html>"
+     primer_bind     7810..7859
+                     /label="pG1K_F (rrnBT1 hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     TGTCGGTGAACTGGATCCtttaaatgtaatcatggtcatagctgtttcctg"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(3959..3975)
+                     /label="pG_arm_inv_R"
+                     /note="color: #a020f0"
+                     /note="sequence: ctgtcagggccggccatt"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(9984..9992)
+                     /label="pG_arm_inv_R"
+                     /note="color: #a020f0"
+                     /note="sequence: ctgtcagggccggccatt"
+                     /note="<html><body></body></html>"
+     primer_bind     4705..4727
+                     /label="pG_arm_inv_F"
+                     /note="color: #a020f0"
+                     /note="sequence: cacatttccccgaaaagtgccacc"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(9209..9242)
+                     /label="GKaraR_F (araD upstream hang)"
+                     /note="color: #a020f0"
+                     /note="sequence: ctctcatacattttgcgtgtacaagttccctcatg"
+                     /note="<html><body></body></html>"
+     primer_bind     9226..9259
+                     /label="araD upstream_F (GKaraR hang)"
+                     /note="color: #a020f0"
+                     /note="sequence: acgcaaaatgtatgagagatcaaaaaaagttatag"
+                     /note="<html><body></body></html>"
+     primer_bind     9305..9342
+                     /label="ACbet_F (GKParaD hang)"
+                     /note="color: #a020f0"
+                     /note="sequence: catagggagtgggagccaATGAACGCGGTCGTCCAATCG"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(9305..9321)
+                     /label="GKParaD_intact_R"
+                     /note="color: #a020f0"
+                     /note="sequence: tggctcccactccctatg"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(5361..5369)
+                     /label="pG1-term_intact_F"
+                     /note="color: #a020f0"
+                     /note="sequence: taagagctcaatttcgcgccc"
+                     /note="<html><body></body></html>"
+     primer_bind     11729..11748
+                     /label="pG1-term_intact_F"
+                     /note="color: #a020f0"
+                     /note="sequence: taagagctcaatttcgcgccc"
+                     /note="<html><body></body></html>"
+     primer_bind     11786..11808
+                     /label="pG-PvuII_inv_F"
+                     /note="color: #a020f0"
+                     /note="sequence: ctgcattaatgaatcggccaacgc"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(7990..8008)
+                     /label="pG-PvuII_inv_R"
+                     /note="color: #a020f0"
+                     /note="sequence: ctggcacgacaggtttcccg"
+                     /note="<html><body></body></html>"
+     primer_bind     11956..11965
+                     /label="pG-PvuII_inv_R"
+                     /note="color: #a020f0"
+                     /note="sequence: ctggcacgacaggtttcccg"
+                     /note="<html><body></body></html>"
+     primer_bind     7992..8045
+                     /label="GKaraR_R (pG_pvuII_hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     ggaaacctgtcgtgccagttaaatttcctttgttgagttacggacaattagctcc"
+                     /note="<html><body></body></html>"
+     primer_bind     3636..3678
+                     /label="rrnBT1_(GeoCas_hang)_F"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     tacaatcaactcgtgattgaCTCGAGTAAGGATCTCCAGGCATC"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(3628..3654)
+                     /label="GeoCas9_intact_R"
+                     /note="color: #a020f0"
+                     /note="sequence: tcaatcacgagttgattgtaacggacgg"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(3833..3858)
+                     /label="rrnBT1_T7Te_intact_R"
+                     /note="color: #a020f0"
+                     /note="sequence: TTGGTAACGAATCAGACAATTGACGGC"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(51..75)
+                     /label="ColE1_ori_intact_R"
+                     /note="color: #a020f0"
+                     /note="sequence: tcatgaccaaaatcccttaacgtgag"
+                     /note="<html><body></body></html>"
+     primer_bind     3860..3888
+                     /label="pG1K_colE1_downstream_intact_F"
+                     /note="color: #a020f0"
+                     /note="sequence: gattatcaaaaaggatcttcacctagatcc"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(3833..3882)
+                     /label="rrnBT1_T7Te_(colE1_down_hang)_R"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     aggtgaagatcctttttgataatcTTGGTAACGAATCAGACAATTGACGGC"
+                     /note="<html><body></body></html>"
+     primer_bind     392..419
+                     /label="GeoCas9_intact_F"
+                     /note="color: #a020f0"
+                     /note="sequence: atgagatacaaaatcggccttgatatcgg"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(2916..2925)
+                     /label="GeoCas9_intact_F"
+                     /note="color: #a020f0"
+                     /note="sequence: atgagatacaaaatcggccttgatatcgg"
+                     /note="<html><body></body></html>"
+     primer_bind     9398..9406
+                     /label="GeoCas9_intact_F"
+                     /note="color: #a020f0"
+                     /note="sequence: atgagatacaaaatcggccttgatatcgg"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(5888..5896)
+                     /label="Pcgg_sgRNAv3_ext_inv_R"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     aaaattcctcccgcgccattttcattatagcaggaggaattgagccg"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(7494..7539)
+                     /label="Pcgg_sgRNAv3_ext_inv_R"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     aaaattcctcccgcgccattttcattatagcaggaggaattgagccg"
+                     /note="<html><body></body></html>"
+     primer_bind     11802..11831
+                     /label="oriT_F (pBR322ori_hang)"
+                     /note="color: #a020f0"
+                     /note="sequence: GCCAACGCGCCCGCCTTTTCCTCAATCGCTC"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(12265..12293)
+                     /label="oriT_R (pBR322ori_hang)"
+                     /note="color: #a020f0"
+                     /note="sequence: CCTCTCCCCAGCTCTTTGGCATCGTCTCTC"
+                     /note="<html><body></body></html>"
+     primer_bind     12277..12301
+                     /label="pBR322ori_down_inv_F (oriT hang)"
+                     /note="color: #a020f0"
+                     /note="sequence: CAAAGAGCTGGGGAGAGGCGGTTTGC"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(11794..11816)
+                     /label="pBR322ori_down_inv_R (oriT hang)"
+                     /note="color: #a020f0"
+                     /note="sequence: AGGCGGGCGCGTTGGCCGATTCAT"
+                     /note="<html><body></body></html>"
+     primer_bind     55..98
+                     /label="Pgap_F (colE1 ori hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     cgttaagggattttggtcatgagaaaacatcatcgcccgccatgc"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(3141..3150)
+                     /label="pRplsWT_F(pG arm hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     aatggccggccctgacagaacaatcgttaaagcggacgtttttgc"
+                     /note="<html><body></body></html>"
+     primer_bind     5293..5306
+                     /label="pG_term_R (pG arm hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     tggcacttttcggggaaatgtgtgataccttaggcttcgcaaaaaaacgc"
+                     /note="<html><body></body></html>"
+     primer_bind     9344..9352
+                     /label="pG_term_R (pG arm hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     tggcacttttcggggaaatgtgtgataccttaggcttcgcaaaaaaacgc"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(11758..11785)
+                     /label="pG_term_R (pG arm hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     tggcacttttcggggaaatgtgtgataccttaggcttcgcaaaaaaacgc"
+                     /note="<html><body></body></html>"
+     primer_bind     12136..12144
+                     /label="pG_term_R (pG arm hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     tggcacttttcggggaaatgtgtgataccttaggcttcgcaaaaaaacgc"
+                     /note="<html><body></body></html>"
+     primer_bind     3934..3952
+                     /label="pGeoCas_up_check_New"
+                     /note="color: #a020f0"
+                     /note="sequence: gagtaaacttggtctgacag"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(4764..4785)
+                     /label="pGeoCas_down_check_New"
+                     /note="color: #a020f0"
+                     /note="sequence: cgtgatacgcctatttttatagg"
+                     /note="<html><body></body></html>"
+     primer_bind     3934..3956
+                     /label="pGeoCas_check_F2"
+                     /note="color: #a020f0"
+                     /note="sequence: gagtaaacttggtctgacagttac"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(4772..4789)
+                     /label="pGeoCas_HDR_check_R"
+                     /note="color: #a020f0"
+                     /note="sequence: gcctcgtgatacgcctatt"
+                     /note="<html><body></body></html>"
+     primer_bind     6115..6124
+                     /label="pGeoCas_HDR_check_R"
+                     /note="color: #a020f0"
+                     /note="sequence: gcctcgtgatacgcctatt"
+                     /note="<html><body></body></html>"
+     primer_bind     3866..3888
+                     /label="pGeoCas_HDR_check_F"
+                     /note="color: #a020f0"
+                     /note="sequence: caaaaaggatcttcacctagatcc"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(7655..7721)
+                     /label="GeoCas_tracr_R (HDV rbz hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     gcatgttgcccagccggcgccagcgaggaggctgggaccatgccggccTGGGGAATGCC
+                     CGCCAAAAG"
+                     /note="<html><body></body></html>"
+     primer_bind     3671..3693
+                     /label="rrnBT1_F (HDV rbz hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     gccggctgggcaacatgcttcggcatggcgaatgggacactgccaggcatcaaataaaa
+                     cgaaagg"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(3713..3724)
+                     /label="rrnBT1_F (HDV rbz hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     gccggctgggcaacatgcttcggcatggcgaatgggacactgccaggcatcaaataaaa
+                     cgaaagg"
+                     /note="<html><body></body></html>"
+     primer_bind     7705..7769
+                     /label="rrnBT1_F (HDV rbz hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     gccggctgggcaacatgcttcggcatggcgaatgggacactgccaggcatcaaataaaa
+                     cgaaagg"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(7789..7800)
+                     /label="rrnBT1_F (HDV rbz hang)"
+                     /note="color: #a020f0"
+                     /note="sequence:
+                     gccggctgggcaacatgcttcggcatggcgaatgggacactgccaggcatcaaataaaa
+                     cgaaagg"
+                     /note="<html><body></body></html>"
+     primer_bind     complement(4705..4721)
+                     /label="pG_arm_check_R"
+                     /note="color: #a020f0"
+                     /note="sequence: acttttcggggaaatgtg"
+                     /note="<html><body></body></html>"
+     primer_bind     3941..3959
+                     /label="pG_arm_check_F"
+                     /note="color: #a020f0"
+                     /note="sequence: cttggtctgacagttaccaa"
+                     /note="<html><body></body></html>"
+
+     misc_feature    7541..7561
+                     /label=gRNA 7541-7561
+                     /locus_tag=ATCC12980_CP128494__gRNA_cluster_1
+                     /note=nuclease: shared_design
+                     /note=spacer: CGCCCCGCTTGTCAGCACGAA (21 bp)
+                     /note=positions: 7541..7561
+                     /note=gRNA_name: gRNA_cluster_1
+
+     misc_feature    3977..4476
+                     /label=UP 3977-4476
+                     /note=upstream homology arm (500 bp)
+                     /note=positions: 3977..4476
+
+     misc_feature    4477..4704
+                     /label=DN 4477-4704
+                     /note=downstream homology arm (228 bp)
+                     /note=positions: 4477..4704
+
+     primer          3957..3999
+                     /label=ATCC12980_CP128494::UF_cluster_1
+                     /note=Tm(target): 60.24 C, Tm(full): 74.75 C
+                     /note=seq: TGGCCGGCCCTGACAGTGCTTGAAGAGCGCGGCCAAGGC
+                     /note=positions: 3957..3999
+
+     primer          complement(4442..4490)
+                     /label=ATCC12980_CP128494::UR_cluster_3
+                     /note=Tm(target): 57.99 C, Tm(full): 66.10 C
+                     /note=seq: GGCTCGTGGATGGATCACGTTTCGATCATCTCCCATTCTTTGTCATCGA
+                     /note=positions: 4442..4490
+
+     primer          4465..4502
+                     /label=ATCC12980_CP128494::DF_cluster_1
+                     /note=Tm(target): 60.41 C, Tm(full): 65.28 C
+                     /note=seq: ATCGAAACGTGATCCATCCACGAGCCAGAGAAGGAGCC
+                     /note=positions: 4465..4502
+
+     primer          complement(4685..4724)
+                     /label=ATCC12980_CP128494::DR_cluster_1
+                     /note=Tm(target): 45.90 C, Tm(full): 64.52 C
+                     /note=seq: GCACTTTTCGGGGAAATGTGGAGACGATGAGCTCCATCAC
+                     /note=positions: 4685..4724
+ORIGIN
+        1 gaagatcctt tgatcttttc tacggggtct gacgctcagt ggaacgaaaa ctcacgttaa
+       61 gggattttgg tcatgagaaa acatcatcgc ccgccatgcc gtcgccgagg cgttcggcta
+      121 ttatttcaat gagcagggcg atgtcgtcca taaggtgaaa acggtcggca ttcaacttga
+      181 gcatctcccg catgtcgaac acgtcatcgc cgtcgccgga ggggcatcga aggcgaaagc
+      241 cattcgcgcc tatatgaagc gggcgccgca ttcactgctc gtcaccgacg aaggcgccgc
+      301 caaagcgtta gtaggggaat aacttccctt gccgatacta ttcagcagca aagttaagga
+      361 ggaaaacacg tctagataag gagtgattcg aatgagatac aaaatcggcc ttgatatcgg
+      421 cattacctct gtaggttggg cagtcattaa cttggatatt ccccgcatcg aagatttggg
+      481 cgtccgcatt tttgagagag cagaaaatcc acagacggga gaatcactag ctcttccacg
+      541 ccgcctcgct cgctcagccc gtcgtcgatt gcgccgccgc aagcatcggc tggagcgcat
+      601 tcgccgtctg gtcattcgcg agggaatttt aacgaaagag gaactggaca aactattcga
+      661 ggaaaaacac gaaatcgacg tctggcagct gcgtgttgag gcattggatc gaaaattaaa
+      721 caacgacgag ctggctcgcg tcctccttca tctagccaag cggcgcggct tcaaatccaa
+      781 ccgcaaaagc gagcgcagca acaaagaaaa cagcacgatg ctcaaacata tcgaagaaaa
+      841 ccgggccatt ctctcaggct accggaccgt cggcgaaatg attgtgaaag atccaaagtt
+      901 tgcgctccat aagcgcaata aaggagaaaa ttatacaaac acgatcgccc gcgatgactt
+      961 agaacacgaa attcgactca ttttctccaa acagcgtgag tttggaaaca tgagttgcac
+     1021 ggaaaagttt gagaatgaat atatcaccat ttgggcttcc cagcgtcctg ttgcttccaa
+     1081 agatgacatc gagaaaaagg tcggcttttg tacctttgaa ccgaaagaaa aacgggcgcc
+     1141 aaaagcaacc tatacattcc aatcgttcat cgcctgggag cacatcaata aattgcggct
+     1201 catctcccca tcaggaacac gggggctcac cgatgaggaa cgacgccttt tgtatgaaca
+     1261 ggcattccaa aaaaacaaaa tcacctacca tgatatatgg acgttgctcc gtttgcctga
+     1321 tgatatctac tttaaaggca ttgtgtacga ttggggcgaa tcgctaaagc aaaacgaaaa
+     1381 catccgattc ctcgaactcg acgcctatca tcaaattcgg aaagccgtcg ataaagtgta
+     1441 tggaaagggg aagtcaagtt catttctccc aatcgatttt gatacattcg gttacgccct
+     1501 gacattgttt aaagatgatg ccgacattca cagctacttg cgaaacgaat atgaacaaaa
+     1561 cggaaaacgg atgccaaatt tagcgaacaa ggtatatgac aacgagctaa ttgaggaact
+     1621 attgaacttg tcattcacca aattcggcca tttgtcgcta aaggcgcttc gcagcattct
+     1681 cccgtacatg gaacaaggag aagtctactc ttcggcttgt gagcgggcgg gatacacgtt
+     1741 tacaggacca aagaaaaaac aaaaaacaat gttgctacca aatattccgc cgatcgccaa
+     1801 tccggtcgtc atgcgtgcat tgacacaggc gcggaaagtg gtgaatgcta ttattaaaaa
+     1861 gtacggttcg ccggtatcca ttcatatcga gttggcccgc gatttatcac aaacgtttga
+     1921 cgaacggcgg aaaacaaaag aagaacaaga cgaaaaccgg aagaaaaacg aaaccgccat
+     1981 ccgccaactc atggagtatg gattgacgct aaacccaacc ggccatgaca ttgtcaagtt
+     2041 caaactttgg agtgagcaaa atgggaggtg cgcctactcg cttcaaccga tcgaaatcga
+     2101 gcggctgctt gaaccggggt atgtagaagt ggatcacgtc atcccgtata gccgaagctt
+     2161 ggacgacagt tataccaata aagtgttggt attgacaaga gaaaaccgcg aaaaaggcaa
+     2221 ccgcattcct gccgaatatt taggcgtcgg aaccgaacgc tggcaacagt ttgaaacgtt
+     2281 tgtgttaaca aacaagcagt tttccaaaaa gaaacgggat cggctgctcc agctccatta
+     2341 tgatgaaaat gaagaaacag aatttaaaaa tcgaaattta aatgacaccc ggtatatttc
+     2401 acgctttttc gccaacttta ttcgcgaaca tctgaaattc gccgaaagtg atgacaagca
+     2461 aaaagtctat acggtcaacg gccgcgttac cgcccatttg cgaagccgct gggagtttaa
+     2521 caaaaaccgt gaagaatcgg atttgcatca tgccgtcgat gccgtgatcg tcgcttgcac
+     2581 aacgccaagc gatatcgcca aaatcactgc cttctatcaa cggcgcgaac aaaacaaaga
+     2641 actggccaaa aagacagaac cgcacttccc gcaaccttgg ccgcacttcg ccgacgaact
+     2701 gcgggcgcgt ttatccaaac atccaaaaga gagtataaaa gctctcaatc ttggaaatta
+     2761 tgatgatcag aaactcgaat cgctacagcc ggtttttgta tcccgaatgc cgaagcggag
+     2821 cgttacaggg gcggctcatc aagaaacatt acggcgctac gtcggtatcg atgaacggag
+     2881 cgggaaaatc caaactgttg tcaaaacgaa actgtccgaa atcaagctgg atgcaagtgg
+     2941 acattttcct atgtacggca aagaaagtga cccaaggaca tacgaagcga tccgccagcg
+     3001 gttgcttgag cataacaatg atccgaaaaa agcattccag gaacctctgt acaaaccgaa
+     3061 aaagaacggg gaaccagggc ctatcattcg gacagtgaaa atcatcgaca caaaaaacca
+     3121 ggtcatcccg ctcaatgacg gcaaaaccgt cgcctacaac agcaacatcg ttcgggttga
+     3181 cgtatttgaa aaagatggga aatattattg tgtccctgtc tacaccatgg acatcatgaa
+     3241 agggattttg ccaaacaaag ccatcgagcc gaacaagccg tactccgaat ggaaggaaat
+     3301 gacggaggac tatacgttcc gatttagcct gtacccgaat gatctcattc gcattgagct
+     3361 tccgcgggaa aaaacagtga aaacgactac aggtgaagag atcaacgtta aggatgtgtt
+     3421 tgtctactac aaaacgattg actcagccac agggggatta gagttgatca gccatgacaa
+     3481 ccgtttctcg ctccgcggcg tcggttcaag aaccctcaaa cgattcgaga aataccaagt
+     3541 agatgtgctc ggcaacatct acaaagtgag aggggaaaag agagttgggt tggcgtcatc
+     3601 tgctcattcg aaaaccgggg aaactatccg tccgttacaa tcaactcgtg attgactcga
+     3661 gtaaggatct ccaggcatca aataaaacga aaggctcagt cgaaagactg ggcctttcgt
+     3721 tttatctgtt gtttgtcggt gaacgctctc tactagagtc acactggctc accttcgggt
+     3781 gggcctttct gcgtttatac ctagggatag aattctaaag atcttccgtc aagccgtcaa
+     3841 ttgtctgatt cgttaccaag attatcaaaa aggatcttca cctagatcct tttaaattaa
+     3901 aaatgaagtt ttaaatcaat ctaaagtata tatgagtaaa cttggtctga cagttaccaa
+     3961 tggccggccc tgacagtgct tgaagagcgc ggccaaggca gcacgctcca tcaaatcatt
+     4021 aaagaagtgc tcgactatcg gaaatggttt tccttcactt tgtactatga aaaaacaaac
+     4081 gagccgaaac gcgagctgac gaaccaccgc ttttaccaat tcagcggtgg ggaaaaggcg
+     4141 atggcgatgt acattcccct tttcgccgcg gcgtattcgc gctaccaaga agcgggcgat
+     4201 gatgccccgt acatcatttc gctcgacgag gcgttcgccg gcgtcgatga aaacaacatc
+     4261 cgcaacctgt tcggacttgt cgaacagctc ggctttaact acatcatgaa ctcgcaggcg
+     4321 ctttggggcg actacgacac cgtgcccgcg ttgtccattt gcgaactcgt ccgcccgcgc
+     4381 aatgcgtcgt ttgtgaccgt cattcattac cgttggaacg ggcgcgtcaa acagctcatg
+     4441 gtcgatgaca aagaatggga gatgatcgaa acgtgatcca tccacgagcc agagaaggag
+     4501 cccggagcga tcgggtctcc ttctccaaaa ggaatttttg cgcatgctcg tccgtctcga
+     4561 attggatgaa gcgaaacagc ggctgttgtt cggttttttc gagacgtatt tgcggcgatc
+     4621 tgaagaggag gaagcaaaac ggcgacacga ggggagccaa atggaaacga aggaagcaaa
+     4681 gcgtgtgatg gagctcatcg tctccacatt tccccgaaaa gtgccacctg acgtctaaga
+     4741 aaccattatt atcatgacat taacctataa aaataggcgt atcacgaggc cgcggccgcc
+     4801 tgtcgagaat ttttggaaaa tagaccttgt cgcgactcga agattagtag tacaatagag
+     4861 acaacataac agaacgggac aaaatagaag agcttccgaa gcgtgtgtaa gtggtgctcc
+     4921 caacaccgtt cgccgtactc gccctacggc aaacacctgc tcgaaagctc ttgtgttaac
+     4981 atatttatgc cttgtcttca ttttaatgca tagatatgtt gaatgcaaga gcgaaacgct
+     5041 tggaaatttt cgtttttcct ccgatgagag cgtgtttgcc tgcgtattaa tgtacggcaa
+     5101 cgcgctcttt tgtttgtccc gaaaaattcg ggagaaacgg gaggagaacg gaaatgtaca
+     5161 taatcactag cgaacaattc acgcaactga aagaaatcga gagagtcaca gatttcgttt
+     5221 ataaacgccg taagattaaa aatgagctga tggagcgtat cgccgacgca ttaggccgca
+     5281 agttccgcaa agcgcaaaaa acaacgcgcg tcatcgacga aattgtttgg ctcgcaacag
+     5341 accgcggttt ttcgttccca gggcgcgaaa cgcttgccaa aaagttaggc gtgtccttgc
+     5401 cgactgttga tcgtgctact cgcatgctca aagactcggg cgaagtcgtc gtttgctatc
+     5461 gtgagaatcc gaatagtaac ggacctaaaa cgcctgtatt cattttccgg agccatgcaa
+     5521 atttcgagcg tattgcagcc gttttaaact tgcgtgacaa cgaagctgat aaagtagaaa
+     5581 acgccgaaaa gcctacggaa tcaagcgatt tagcgcgtaa aacggacgct accattagtt
+     5641 caccagttga aaaacatgac gatattaata aattaataga caatacacat ccgttggata
+     5701 aaattgtaaa atacgtcact attaaagtga acgaagtgca gaagcgtcat ccttacggca
+     5761 ttcgatatct atccgcatac ataaacaaaa cactcgacga cctaatgcaa cgtgcaaaag
+     5821 cgaaggtcaa agccgaaaaa gctcgcgccc aacaacgcaa acaagccgac tatcaaccga
+     5881 ccgcgaccgg cttaatttgg tacgacttca cggcggacac aagcgccagc cagccgacaa
+     5941 gccagcgcaa gccagcgttt gacagcgaag acatgtttgc gccgttattg caggctgttg
+     6001 cacgaattaa gggcgttgag gtgtgacaca ctcgttttaa ggcgtctaac aggcgcgtag
+     6061 agacgtcttt aagtcggggg aatattaaaa attccacgcc tcctaaaacg cgatatacgc
+     6121 cgattatgag tttaaactgt ttttgcacaa aatgtttgcc aaccaaaacc atcaaactgc
+     6181 caaaatatcg ttctaaattt ctgttacagg catattcata tcaatgtcgc catcgatggc
+     6241 aataatttca aaggcatatt ctctaaaaaa tttgtattta ggactagaat ttagaagaaa
+     6301 aatgtattat tataggagac gtggagcatt gaggaattat gctcaagtgc tagcaacaga
+     6361 tgctaggctt tctaatcagc ccagcatcta gccgtcaagg atgatattgg ttgatgttag
+     6421 caccttttag gcaatgaatc tactaaacgg cagccgttta ggatcattgt cttaaagttt
+     6481 cataaaaatg aagggggatt ttaggcttta tgagaatagt gaatggacca ataataatga
+     6541 ctagagaaga aagaatgaag attgttcatg aaattaagga acgaatattg gataaatatg
+     6601 gggatgatgt taaggctatt ggtgtttatg gctctcttgg tcgtcagact gatgggccct
+     6661 attcggatat tgagatgatg tgtgtcatgt caacagagga agcagagttc agccatgaat
+     6721 ggacaaccgg tgagtggaag gtggaagtga atttttatag cgaagagatt ctactagatt
+     6781 atgcatctca ggtggaatca gattggccgc ttacacatgg tcaatttttc tctattttgc
+     6841 cgatttatga ttcaggtgga tacttagaga aagtgtatca aactgctaaa tcggtagaag
+     6901 cccaaaagtt ccacgatgcg atttgtgccc ttatcgtaga agagctgttt gaatatgcag
+     6961 gcaaatggcg taatattcgt gtgcaaggac cgacaacatt tctaccatcc ttgactgtac
+     7021 aggtagcaat ggcaggtgcc atgttgattg gtctgcatca tcgcatctgt tatacgacga
+     7081 gcgcttcggt cttaactgaa gcagttaagc aatcagatct tccttcaggt tatgaccatc
+     7141 tgtgccagtt cgtaatgtct ggtcaacttt ccgactctga gaaacttctg gaatcgctag
+     7201 agaatttctg gaatgggatt caggagtgga cagaacgaca cggatatata gtggatgtgt
+     7261 caaaacgcat accattttga taaggcgcgc ctctacggac cgagtattca acaaacgggc
+     7321 cagtttgttg aaatcgttaa ttaagcgtac tagtcctagg ctagctgata ccaggtcagt
+     7381 cccgggacag gtcgacctcg agtacgcctg cagggacggg gaagaaatcg ggtatgggat
+     7441 gattgaaaaa gaaatggtga gaaagcggtt gcggcaagtg cgaaacagtt gaacggctca
+     7501 attcctcctg ctataatgaa aatggcgcgg gaggaatttt cgccccgctt gtcagcacga
+     7561 agtcatagtt cccctgaaaa gtcagggtta ctatgataag ggctttctgc ctaaggcaga
+     7621 ctgacccgcg gcgttgggga tcgcctgtcg cccgcttttg gcgggcattc cccaggccgg
+     7681 catggtccca gcctcctcgc tggcgccggc tgggcaacat gcttcggcat ggcgaatggg
+     7741 acactgccag gcatcaaata aaacgaaagg ctcagtcgaa agactgggcc tttcgtttta
+     7801 tctgttgttt gtcggtgaac tggatccttt aaatgtaatc atggtcatag ctgtttcctg
+     7861 tgtgaaattg ttatccgctc acaattccac acaacatacg agccggaagc ataaagtgta
+     7921 aagcctgggg tgcctaatga gtgagctaac tcacattaat tgcgttgcgc tcactgcccg
+     7981 ctttccagtc gggaaacctg tcgtgccagt taaatttcct ttgttgagtt acggacaatt
+     8041 agctccggtc gataaatgat atcgccaatt ttatcgactg atcgttgttc gatcatttga
+     8101 atgagcatct cagccgcttg aacgcccatt tctgttttcg gatggcgaat cgtcgtcaat
+     8161 ttcacctccg tcgctgtcgc aaatgtagag tcatcaaagc caacgatcga aatgtcatcg
+     8221 ggaaccgata acccttgttg gcgaatgact tcaagaagca aaatcgccag ctcatcgttg
+     8281 tagcacacaa aggctgtcgg gcgctcctct ttcggccgtt gcaaaaactc ccgcgccacc
+     8341 tcaagcggtt ttgtccattt ctcctctgtt gcgtaggaaa gaagatactc cgtcgccaca
+     8401 ggcacctcgt gttgctgatg ggcgcgaata aagccgcgca aacgatccac cccttgcaaa
+     8461 tcgtcggttt taaagaaacc agcaatccgg cggtgcccta aacgaatgag atggtcggtc
+     8521 aataaaaatc ctccctgctc gtcgtccatt ttgacgcatg gacagctcac ttccaaatag
+     8581 cgggcattga tcatcacgta cggaatatgg aggttattga gcgacaagta gtagcccaaa
+     8641 tttggatttc cttgcgcgct ttttgtcggt tcgatgatca gtccgctcaa cggctcccgg
+     8701 atcatctcct caagctgctc tttctctctc tgtttatcgt tattcgtgct ggcaagcaaa
+     8761 agacggtatc ctttttcccg cagcgtctcc tccgctcctc ggacgatatg gggaaaaata
+     8821 taatcggaaa tataggtcgt cacgatcccg atcgttttcg tatccacctg ttctttcggc
+     8881 ttcggtcggg acacaaatgt gccgctccct tggattttgt acagccatcc ttccttctcg
+     8941 agttccccta gcgcctgccg aaccgtatgt cggcttagtt gaaactggtt ggcgatttcg
+     9001 tgctcggttg gaattttctc atccggcttc atttgtccgg aaatgatcca agataaaatt
+     9061 tcttgtttta attgcagata tttaggcagc gttttctcct tcatagtcca cctcaacgat
+     9121 aaaataatga gatacaaatt aattttatta taacagtttt tatttgtccg tatcattatt
+     9181 ctaaaagcaa gcagcggaaa gaatgaaaca tgagggaact tgtacacgca aaatgtatga
+     9241 gagatcaaaa aaagttatag aaaaattgta cgtacaatag tataatggag gtgaggagtt
+     9301 ttttcatagg gagtgggagc caatgaacgc ggtcgtccaa tcgaaaaaat cgcaatcgat
+     9361 cacgacgatc ccggcgttgg aaatgtcgga gcaagaattg atctcggtct tggaaaactc
+     9421 gatctatccg ggcgcgtcgc gcgaatcgat caaaatggcg atctcgtatt gcgcggcggc
+     9481 gaaattggat ccgttgcaaa aaccggtcca tatcgtcccg atgtgggata cgaaagcgaa
+     9541 acgcatgcgc gatgtcatct tgccgggcat cggcttgtat cgcacgcaag cggcgcgctc
+     9601 gggcgaatat gcgggcgtct cggaaccgga atttggcgaa gatgtcacgg aaacgatcgg
+     9661 cggcgtcaaa gtcacgtatc cgaaatggtg caaagcgacg gtcaaacgcc gcttgccgtc
+     9721 gggcgaaatc gtcgaatttt cggcgaaaga attttggaaa gaaaactatg cggtcaaagg
+     9781 cggccaagaa aaatcgatcg cgccgaacgc gatgtgggcg aaacgcccgt atgggcaatt
+     9841 ggcgaaatgc gcggaagcgc aagcgttgcg caaggccttt ccggaattgg gcgcgcaacc
+     9901 gacggcggaa gaaatgcaag gctcgacgat cgaaacgtcg gaagtcatcg acggccaaac
+     9961 gggcgaaatc atccaagtcc aaaaatcgcc ggcgcgcccg gccttggaac cgtatccgga
+    10021 agaatatttt cgccaaaact tgccgaaatg gaaagatttg gtcgaatcgg gcaaacgctc
+    10081 ggcggatgat atcttggcga tgatccgctc gaaagcgacc ttgacgtcgg aacaagaagc
+    10141 ggcgatccgc tcgttgtcgc atccggacgg ctcgacggaa gattttgcgg aagtcggcga
+    10201 agaataaatc atgttgcgct atcatgatgt cgaacaaggc tcgccggatt ggttgtcgtt
+    10261 gcgcttgcgg cattttacgg gctcggaagc gccggcgatg atgggcgtct cgccgtattt
+    10321 gggccgcaac gaattgttgc gccaaaaagc gacgggcatg gtcccggaag tcgatgcggc
+    10381 gacgcaagtc atctttgatg cggggcatgc ggcggaagcg gcgatccgcc cggcggcgga
+    10441 acaaatcgtc ggcgaagaat tgtttccggg cacgtgctcg cgcgatgtcg acgggttgcc
+    10501 gttgttggcg tcgctggacg gcttgacgat ggacggctcg gtcgtctggg aaaacaaatt
+    10561 gaaaaacgcg gaaacgatcg cgtatatcgc ggaacatggg gaaccgccgt tgcatcatgt
+    10621 ctggcaattg gaacatcaat tgttggtcac gggcgcggaa aaagcgttgt ttacgtgcgg
+    10681 cacggacggc gaagattttg tccgctgctg gtatgaatcg cgcccggaac gccgcgaagc
+    10741 gatcttggcg ggctggaaac gctttgcgga agatttggcg tcgtatacgc cgcgcccgga
+    10801 tgagtacgaa tttatcggcg tcgcgccgga tcgcttgccg gcgcttcatg tcgcggtctc
+    10861 gggccgcatc ttggcgtcga acatcgcgga gtggcgcgat cgcacgctgg aaatcttggc
+    10921 gggcatcccg cgcgatttgc atacggatca agattttgcg aacgcggaag aaacgatccg
+    10981 ctgggcgaaa gaagcgttgg atcgcatcgc ggtcgtcaaa gatgcggtct tggcgcaaat
+    11041 gccggatgtc gaacaaatgt ttcgctcgtt ggatgatatc ggcgaagcgc tgggccgcac
+    11101 ggtcaaagat ttggacggct tggtcaaggt ccgcaaagat aacatccgct tggaaatggt
+    11161 ccaaaaagcg gcggaatcgg tccgcgcgca ttatgatgcc ttggcgctcg agttgggcgc
+    11221 gtatgcgccg acgatgccgt cggcgctgtt ggcggaattg ggcgcgtcga tcaaaggcac
+    11281 gcgcacggcg aaagccgcgg cggccaaatt ggattcggcg gtcgcgcaag cgaaaatcgc
+    11341 ggcggataaa gaagcgaacc gcttgcgcac ggcgcaacgc ttgtttgcgg atgcggccgc
+    11401 gcgcgttgga gtcgatttgt ggccggatgg accgacgttg gcgaaaacga tggatgaaga
+    11461 tgccctgttg ggcgtcatcg cgcgccgcgt gaacgcgcat cgctcgcaag gctcgcgccc
+    11521 gacggcgaag gcgagcaaaa cgctgacctt ggatgcgatc tgcgcgcgca tcgcgccgtt
+    11581 gggcatcacg aaagcgggct tggcgcaatt gggctttgcg ccgttgccgg acggcggcta
+    11641 tttggaagcg gattttccga aaatctgcgc ggccttggtc gcgacgcttc aatcggcggc
+    11701 taaagatgaa gtcgcggatg ccgcctaata agagctcaat ttcgcgcccc gaaaggggcg
+    11761 tttttttgcg aagcctaagg tatcactgca ttaatgaatc ggccaacgcg cccgcctttt
+    11821 cctcaatcgc tcttcgttcg tctggaaggc agtacacctt gataggtggg ctgcccttcc
+    11881 tggttggctt ggtttcatca gccatccgct tgccctcatc tgttacgccg gcggtagccg
+    11941 gccagcctcg cagagcagga ttcccgttga gcaccgccag gtgcgaataa gggacagtga
+    12001 agaaggaaca cccgctcgcg ggtgggccta cttcacctat cctgcccggc tgacgccgtt
+    12061 ggatacacca aggaaagtct acacgaaccc tttggcaaaa tcctgtatat cgtgcgaaaa
+    12121 aggatggata taccgaaaaa atcgctataa tgaccccgaa gcagggttat gcagcggaaa
+    12181 agcgctgctt ccctgctgtt ttgtggaata tctaccgact ggaaacaggc aaatgcagga
+    12241 aattactgaa ctgaggggac aggcgagaga cgatgccaaa gagctgggga gaggcggttt
+    12301 gcgtattggg cgctcttccg cttcctcgct cactgactcg ctgcgctcgg tcgttcggct
+    12361 gcggcgagcg gtatcagctc actcaaaggc ggtaatacgg ttatccacag aatcagggga
+    12421 taacgcagga aagaacatgt gagcaaaagg ccagcaaaag gccaggaacc gtaaaaaggc
+    12481 cgcgttgctg gcgtttttcc ataggctccg cccccctgac gagcatcaca aaaatcgacg
+    12541 ctcaagtcag aggtggcgaa acccgacagg actataaaga taccaggcgt ttccccctgg
+    12601 aagctccctc gtgcgctctc ctgttccgac cctgccgctt accggatacc tgtccgcctt
+    12661 tctcccttcg ggaagcgtgg cgctttctca tagctcacgc tgtaggtatc tcagttcggt
+    12721 gtaggtcgtt cgctccaagc tgggctgtgt gcacgaaccc cccgttcagc ccgaccgctg
+    12781 cgccttatcc ggtaactatc gtcttgagtc caacccggta agacacgact tatcgccact
+    12841 ggcagcagcc actggtaaca ggattagcag agcgaggtat gtaggcggtg ctacagagtt
+    12901 cttgaagtgg tggcctaact acggctacac tagaagaaca gtatttggta tctgcgctct
+    12961 gctgaagcca gttaccttcg gaaaaagagt tggtagctct tgatccggca aacaaaccac
+    13021 cgctggtagc ggtggttttt ttgtttgcaa gcagcagatt acgcgcagaa aaaaaggatc
+    13081 tcaa
+//

@@ -259,8 +259,43 @@ write_deletion_genbank <- function(
 .get_genbank_from_dna <- function(dna_file, kill_snapgene = FALSE) {
   if (kill_snapgene) .kill_snapgene()
 
-  # Try SnapGene CLI conversion first
+  # --- Method 1: Python snapgene_reader.snapgene_file_to_gbk ---
+  # Preferred path: leaves SnapGene alone and produces a full GenBank file
+  # with features AND an ORIGIN section. snapgene_reader expects open file
+  # handles (not paths), so we drive it through a small Python snippet.
+  if (base::requireNamespace("reticulate", quietly = TRUE) &&
+      reticulate::py_module_available("snapgene_reader")) {
+    py_lines <- base::tryCatch({
+      temp_gb <- base::tempfile(fileext = ".gbk")
+      # Use snapgene_file_to_seqrecord + Biopython's GenBank writer: the
+      # built-in snapgene_file_to_gbk in 0.1.23 crashes on common qualifier
+      # structures (AttributeError: 'dict' object has no attribute 'replace').
+      reticulate::py_run_string(base::paste(
+        "from snapgene_reader import snapgene_file_to_seqrecord",
+        "from Bio import SeqIO",
+        base::sprintf("_rec = snapgene_file_to_seqrecord(filepath=r'%s')",
+                       dna_file),
+        base::sprintf("SeqIO.write(_rec, r'%s', 'genbank')", temp_gb),
+        sep = "\n"
+      ))
+      if (base::file.exists(temp_gb) && base::file.info(temp_gb)$size > 0) {
+        lines <- base::readLines(temp_gb, warn = FALSE)
+        base::file.remove(temp_gb)
+        if (base::any(base::grepl("^ORIGIN", lines)) &&
+            base::any(base::grepl("^//", lines))) {
+          return(lines)
+        }
+      }
+      NULL
+    }, error = function(e) {
+      base::warning("snapgene_reader gbk export failed: ",
+                    base::conditionMessage(e), call. = FALSE)
+      NULL
+    })
+    if (!base::is.null(py_lines)) return(py_lines)
+  }
 
+  # --- Method 2: SnapGene CLI conversion ---
   snapgene_paths <- base::c(
     "/Applications/SnapGene.app/Contents/MacOS/SnapGene",
     "C:/Program Files/SnapGene/snapgene.exe",
@@ -287,7 +322,7 @@ write_deletion_genbank <- function(
     }
   }
 
-  # Fallback: build minimal GenBank from sequence
+  # --- Method 3: minimal stub from sequence only (last resort) ---
   vec <- read_vector_file(dna_file, kill_snapgene = FALSE)
   return(.build_minimal_genbank(vec$name, vec$sequence))
 }
@@ -297,6 +332,17 @@ write_deletion_genbank <- function(
 #' @keywords internal
 .build_minimal_genbank <- function(name, sequence) {
   len <- base::nchar(sequence)
+  seq_lower <- base::tolower(sequence)
+  # GenBank ORIGIN formatting: 60 bp per line, spaces every 10 bp, left
+  # padded with the 1-based start position.
+  block_size <- 60L
+  starts <- base::seq.int(1L, len, by = block_size)
+  origin_lines <- base::vapply(starts, function(s) {
+    chunk <- base::substring(seq_lower, s, base::min(s + block_size - 1L, len))
+    groups <- base::regmatches(chunk,
+      base::gregexpr(".{1,10}", chunk, perl = TRUE))[[1]]
+    base::sprintf("%9d %s", s, base::paste(groups, collapse = " "))
+  }, character(1))
   base::c(
     base::sprintf("LOCUS       %s  %d bp  DNA  circular  UNK", name, len),
     base::sprintf("DEFINITION  %s deletion vector.", name),
@@ -305,7 +351,9 @@ write_deletion_genbank <- function(
     "FEATURES             Location/Qualifiers",
     base::sprintf("     source          1..%d", len),
     base::sprintf("                     /organism=%s", name),
-    "ORIGIN"
+    "ORIGIN",
+    origin_lines,
+    "//"
   )
 }
 

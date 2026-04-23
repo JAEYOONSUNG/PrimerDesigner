@@ -68,7 +68,11 @@ find_target_across_genomes <- function(
     interactive = base::interactive(),
     one_per_genome = TRUE,
     genome_id_from = c("file", "accession"),
-    kill_snapgene = FALSE
+    kill_snapgene = FALSE,
+    sequence_fallback = TRUE,
+    sequence_fallback_min_identity = 0.35,
+    sequence_fallback_min_qcov = 0.60,
+    sequence_fallback_evalue = 1e-5
 ) {
   query_type <- base::match.arg(query_type)
   genome_id_from <- base::match.arg(genome_id_from)
@@ -97,6 +101,9 @@ find_target_across_genomes <- function(
 
   # --- Per-file search (parse once per file; CDS-only feature extraction) ---
   rows <- base::list()
+  parsed_cache <- base::list()   # cache parsed records to reuse on fallback pass
+  file_map <- base::list()        # genome_id -> genbank_file
+  missed <- base::list()          # genome_id -> list(parsed, gf) with no hit
   for (gf in gb_files) {
     base::cat("  ", base::basename(gf), "\n")
     parsed <- base::tryCatch(.find_target_read_any(gf, kill_snapgene),
@@ -109,26 +116,85 @@ find_target_across_genomes <- function(
       file = base::sub("\\.[^.]+$", "", base::basename(gf)),
       accession = if (base::nzchar(parsed$accession)) parsed$accession
                    else base::sub("\\.[^.]+$", "", base::basename(gf)))
+    parsed_cache[[gid]] <- parsed
+    file_map[[gid]] <- gf
 
     hits <- .find_target_hits(gt, query, query_type, ignore_case, regex)
     if (base::nrow(hits) == 0) {
-      base::message("  (no match in ", gid, ")")
+      missed[[gid]] <- base::list(parsed = parsed, gf = gf)
       next
     }
     hits$genome_id    <- gid
     hits$genbank_file <- gf
     rows[[base::length(rows) + 1]] <- hits
   }
-  if (base::length(rows) == 0) {
+
+  # --- Sequence-based fallback for genomes with no annotation match ----
+  # Seeds are the CDS records of every annotation hit we already have.
+  # For each missing genome, run MMseqs2 (or Biostrings) to locate a
+  # homolog and append a row with `match_field = "sequence_homolog"`.
+  seq_rows <- base::list()
+  if (base::isTRUE(sequence_fallback) && base::length(missed) > 0L &&
+      base::length(rows) > 0L) {
+    all_annotation_hits <- base::do.call(base::rbind, rows)
+    seeds <- base::list()
+    for (k in base::seq_len(base::nrow(all_annotation_hits))) {
+      r <- all_annotation_hits[k, , drop = FALSE]
+      nt <- if ("nt_seq" %in% base::colnames(r)) base::as.character(r$nt_seq[1]) else NA_character_
+      aa <- if ("protein" %in% base::colnames(r)) base::as.character(r$protein[1]) else NA_character_
+      if (base::is.na(aa) && !base::is.na(nt))
+        aa <- .shared_translate_cds(nt)
+      if (!base::is.na(aa) && base::nchar(aa) > 10L) {
+        seed_id <- base::paste0(r$genome_id[1], "__", r$locus_tag[1])
+        seeds[[seed_id]] <- base::list(nt = nt, aa = aa)
+      }
+    }
+    if (base::length(seeds) > 0L) {
+      base::cat("\nSequence-based homolog fallback for ",
+                 base::length(missed), " genome(s) without annotation match:\n",
+                 sep = "")
+      for (gid in base::names(missed)) {
+        parsed <- missed[[gid]]$parsed
+        gf <- missed[[gid]]$gf
+        row <- base::tryCatch(
+          .shared_find_homolog_by_sequence(
+            seeds = seeds, genome_id = gid,
+            genome_record = parsed, genbank_table = parsed$genbank_table,
+            genbank_file = gf,
+            evalue = sequence_fallback_evalue,
+            min_aa_identity = sequence_fallback_min_identity,
+            min_q_cov = sequence_fallback_min_qcov, verbose = TRUE),
+          error = function(e) {
+            base::warning(sprintf("homolog fallback failed for %s: %s",
+                                   gid, base::conditionMessage(e)), call. = FALSE)
+            NULL
+          })
+        if (!base::is.null(row)) seq_rows[[base::length(seq_rows) + 1L]] <- row
+      }
+    }
+  }
+
+  if (base::length(rows) == 0 && base::length(seq_rows) == 0) {
     base::stop("No GenBank file contained a match for query '", query, "'.")
   }
-  all_hits <- base::do.call(base::rbind, rows)
+  all_hits <- if (base::length(rows) > 0)
+    base::do.call(base::rbind, rows) else base::data.frame()
+  if (base::length(seq_rows) > 0) {
+    seq_df <- dplyr::bind_rows(seq_rows)
+    # Reconcile columns: annotation rows have nt_seq/protein etc.; homolog
+    # rows carry the extra diagnostic fields. Use dplyr::bind_rows to align.
+    all_hits <- dplyr::bind_rows(all_hits, seq_df)
+  }
   base::rownames(all_hits) <- NULL
 
   # --- Resolve ambiguity per genome ---
+  desired_cols <- base::c("genome_id", "genbank_file", "locus_tag",
+                           "gene", "product", "match_field",
+                           "sequence_hit", "pident", "qcov", "bits",
+                           "homology_seed", "pseudo_locus")
+  return_cols <- base::intersect(desired_cols, base::colnames(all_hits))
   if (!interactive) {
-    return(all_hits[, c("genome_id", "genbank_file", "locus_tag",
-                         "gene", "product", "match_field"), drop = FALSE])
+    return(all_hits[, return_cols, drop = FALSE])
   }
 
   resolved <- base::do.call(base::rbind, base::lapply(
@@ -148,11 +214,14 @@ find_target_across_genomes <- function(
 
   # --- Summary print ---
   base::cat("\nSelected target across", base::nrow(resolved), "genome(s):\n")
-  base::print(resolved[, c("genome_id", "locus_tag", "gene", "product")],
+  base::print(resolved[, base::intersect(base::c("genome_id", "locus_tag",
+                                                    "gene", "product",
+                                                    "match_field"),
+                                            base::colnames(resolved))],
               row.names = FALSE)
 
-  resolved[, c("genome_id", "genbank_file", "locus_tag",
-                "gene", "product"), drop = FALSE]
+  final_cols <- base::intersect(return_cols, base::colnames(resolved))
+  resolved[, final_cols, drop = FALSE]
 }
 
 # ---- Internal helpers -------------------------------------------------------
@@ -221,7 +290,9 @@ find_target_across_genomes <- function(
   }
 
   out <- gt[keep, base::intersect(c("locus_tag", "start", "end", "strand",
-                                    "gene", "product"), base::names(gt)),
+                                    "gene", "product", "nt_seq", "protein",
+                                    "contig"),
+                                   base::names(gt)),
             drop = FALSE]
   if (base::nrow(out) > 0) out$match_field <- mf
   out

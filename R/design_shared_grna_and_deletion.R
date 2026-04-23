@@ -158,6 +158,7 @@ design_shared_grna_and_deletion <- function(
     combined_construct_output_dir = NULL,
     output_file = NULL,
     kill_snapgene = FALSE,
+    write_dna_copies = FALSE,
     inner_boundary_tolerance_bp = 50L,
     design_check_primers = TRUE,
     check_outer_pad = 50L,
@@ -316,6 +317,94 @@ design_shared_grna_and_deletion <- function(
       output_dir = combined_construct_output_dir,
       kill_snapgene = kill_snapgene
     )
+    # Optional native-format `.dna` sidecar for every combined construct.
+    # Writes by editing the source plasmid binary directly so every
+    # SnapGene annotation (Primers panel, Features colors, StrandColors,
+    # history) survives — which the GenBank round-trip cannot guarantee.
+    if (base::isTRUE(write_dna_copies)) {
+      if (verbose) base::message(
+        "[shared] writing combined construct .dna files (native binary editor) ...")
+      vec_dna <- combined_vector_file
+      # Read plasmid sequence once so we can build per-construct specs.
+      plasmid_parsed <- read_vector_file(vec_dna, kill_snapgene = FALSE)
+      plasmid_seq <- plasmid_parsed$sequence
+      # Cluster number lookup from cluster_id strings.
+      cnum <- function(cid) base::suppressWarnings(base::as.integer(
+        base::sub(".*_cluster_", "", base::as.character(cid))))
+      method_abbrev <- if (base::tolower(base::as.character(
+          grna_cloning_method)) == "gibson") "inv" else "OA"
+      for (i in base::seq_len(base::nrow(final_construct_groups))) {
+        fg <- final_construct_groups[i, , drop = FALSE]
+        rep_id <- base::as.character(fg$representative_genome[1])
+        label  <- base::as.character(fg$construct_label[1])
+        ctx <- target_context[target_context$genome_id == rep_id, ,
+                               drop = FALSE]
+        if (base::nrow(ctx) != 1L) next
+        cdp <- construct_deletion_primers[
+          construct_deletion_primers$construct_label == fg$donor_group_id[1] |
+          construct_deletion_primers$representative_genome == rep_id, ,
+          drop = FALSE][1, , drop = FALSE]
+        grna_row <- grna_groups[grna_groups$cluster_id == fg$grna_group_id[1],
+                                  , drop = FALSE][1, , drop = FALSE]
+        # arm cluster ids and gRNA cluster id for this construct
+        arm_cluster_id <- function(role) {
+          pc <- deletion_res$primer_cores
+          cands <- pc[pc$role == role, , drop = FALSE]
+          keep <- base::vapply(base::strsplit(cands$used_by, ", "),
+            function(x) rep_id %in% x, logical(1))
+          cands$cluster_id[base::which(keep)[1]]
+        }
+        spec <- .shared_build_combined_dna_spec(
+          plasmid_seq = plasmid_seq,
+          grna_start = base::as.integer(combined_grna_start),
+          grna_end   = base::as.integer(combined_grna_end),
+          donor_start = base::as.integer(combined_deletion_start),
+          donor_end   = base::as.integer(combined_deletion_end),
+          protospacer = base::as.character(grna_row$protospacer[1]),
+          donor_insert = base::as.character(ctx$effective_insert_seq[1]),
+          arm_upstream_bp = base::nchar(base::as.character(
+            ctx$effective_left_arm_seq[1])),
+          arm_downstream_bp = base::nchar(base::as.character(
+            ctx$effective_right_arm_seq[1])),
+          locus_tag = base::as.character(ctx$locus_tag[1]),
+          method_abbrev = method_abbrev,
+          primer_cluster_nums = base::list(
+            UF = cnum(arm_cluster_id("UF")),
+            UR = cnum(arm_cluster_id("UR")),
+            DF = cnum(arm_cluster_id("DF")),
+            DR = cnum(arm_cluster_id("DR")),
+            gRNA = cnum(fg$grna_group_id[1])
+          ),
+          arm_primer_cores = base::list(
+            UF = base::as.character(cdp$upstream_forward_primer[1]),
+            UR = base::as.character(cdp$upstream_reverse_primer[1]),
+            DF = base::as.character(cdp$downstream_forward_primer[1]),
+            DR = base::as.character(cdp$downstream_reverse_primer[1])
+          ),
+          grna_primer_pair = base::list(
+            primer_F = base::as.character(grna_cloning_primers$primer_F[1]),
+            primer_R = base::as.character(grna_cloning_primers$primer_R[1])
+          )
+        )
+        out_dna <- base::file.path(combined_construct_output_dir,
+          base::paste0(label, "_combined_construct.dna"))
+        base::tryCatch({
+          .shared_write_combined_dna(
+            plasmid_path = vec_dna, output_path = out_dna,
+            edits = spec$edits,
+            new_features = spec$new_features,
+            new_primers = spec$new_primers)
+          if (verbose) base::message(sprintf(
+            "[shared]   wrote %s (%d primers, %d new features)", out_dna,
+            base::length(spec$new_primers),
+            base::length(spec$new_features)))
+        }, error = function(e) {
+          base::warning(sprintf(".dna export failed for %s: %s", label,
+                                 base::conditionMessage(e)),
+                        call. = FALSE)
+        })
+      }
+    }
   }
 
   if (!base::is.null(output_file)) {
@@ -381,7 +470,9 @@ design_shared_grna_and_deletion <- function(
     construct_deletion_primers = construct_deletion_primers,
     grna_cloning_primers = grna_cloning_primers,
     check_primer_cores = check_primer_cores,
-    grna_groups = grna_groups
+    check_primer_pairs = check_primer_pairs,
+    grna_groups = grna_groups,
+    target_context = target_context
   )
   # Merge construct_requirements useful fields into final_construct_groups.
   requirements <- .shared_build_construct_requirements(
@@ -429,10 +520,19 @@ design_shared_grna_and_deletion <- function(
     .shared_style_basic_sheet(wb, sn, sheets[[sn]])
   }
 
-  # Fill rows by used_by cluster (existing palette), then draw automated
-  # thick borders around each arm / gRNA / check block via the `group` col.
+  # Fill rows by used_by cluster (existing palette). Then draw nested
+  # borders: thin around arm / gRNA / check groups, then hair (thinnest)
+  # around each role sub-block inside those groups (UF/UR/DF/DR for arm,
+  # gRNA_F/gRNA_R for gRNA, cF/cR for check).
   .shared_style_cluster_sheet(wb, "primer_order", primer_order, "used_by")
-  .shared_style_group_borders(wb, "primer_order", primer_order, "group")
+  # Draw inner (role) borders FIRST, then outer (group) borders, so that
+  # where an inner boundary coincides with a group boundary the outer
+  # style wins (openxlsx stack = TRUE lets later border calls overwrite
+  # the earlier one on the same edge).
+  .shared_style_group_borders(wb, "primer_order", primer_order, "role",
+                               border_style = "hair")
+  .shared_style_group_borders(wb, "primer_order", primer_order, "group",
+                               border_style = "medium")
   .shared_style_cluster_sheet(wb, "final_construct_groups",
                                final_construct_groups, "used_by")
   if ("check_primers" %in% base::names(sheets)) {
@@ -543,9 +643,38 @@ design_shared_grna_and_deletion <- function(
     construct_deletion_primers = NULL,
     grna_cloning_primers = NULL,
     check_primer_cores = NULL,
-    grna_groups = NULL
+    check_primer_pairs = NULL,
+    grna_groups = NULL,
+    target_context = NULL
 ) {
   rows <- base::list()
+
+  # locus_tag lookup keyed by genome_id (from target_context).
+  locus_map <- base::list()
+  if (!base::is.null(target_context) && base::nrow(target_context) > 0 &&
+      base::all(base::c("genome_id", "locus_tag") %in% base::colnames(target_context))) {
+    locus_map <- stats::setNames(
+      base::as.character(target_context$locus_tag),
+      base::as.character(target_context$genome_id))
+  }
+  lookup_locus <- function(gid) {
+    v <- locus_map[[base::as.character(gid)]]
+    if (base::is.null(v) || base::is.na(v)) base::as.character(gid) else v
+  }
+  cluster_num <- function(cid) base::suppressWarnings(base::as.integer(
+    base::sub(".*_cluster_", "", base::as.character(cid))))
+
+  # Cloning-method abbreviation: inv = Gibson, OA = Golden Gate. Used for
+  # the gRNA cloning primer order_name (sgRNA_<locus>_clstr<N>_<inv|OA>_F/R).
+  method_abbrev <- "OA"
+  if (!base::is.null(grna_cloning_primers) &&
+      "cloning_method" %in% base::colnames(grna_cloning_primers) &&
+      base::nrow(grna_cloning_primers) > 0) {
+    if (base::tolower(base::as.character(
+          grna_cloning_primers$cloning_method[1])) %in%
+        base::c("gibson", "inverse_pcr", "inverse"))
+      method_abbrev <- "inv"
+  }
 
   # Arm primers -- use the FULL (overhang + core) form from
   # construct_deletion_primers via the actual order sheet builder.
@@ -555,15 +684,58 @@ design_shared_grna_and_deletion <- function(
       construct_deletion_primers, primer_cores = primer_cores
     )
     if (base::nrow(arm_full) > 0) {
+      # Build per-construct "actual" order_name for each row: one entry per
+      # genome that uses this primer, formatted as in the .dna files
+      # (<locus_tag>_<role>_clstr<N>_<F|R>).
+      arm_names <- base::vapply(base::seq_len(base::nrow(arm_full)),
+                                  function(i) {
+        members <- base::strsplit(arm_full$genomes_shared[i], ", ")[[1]]
+        cid <- arm_full$cluster_ids[i]
+        ns <- cluster_num(cid)
+        role <- arm_full$role[i]
+        fr <- if (role %in% base::c("UF", "DF")) "F" else "R"
+        names_vec <- base::vapply(members, function(gid)
+          base::sprintf("%s_%s_clstr%d_%s", lookup_locus(gid), role, ns, fr),
+          character(1))
+        base::paste(names_vec, collapse = ", ")
+      }, character(1))
+      # Re-index subgroup by UNIQUE FULL primer sequence within each role.
+      # `arm_full` already deduplicates by full sequence, but distinct full
+      # oligos can all carry the same `cluster_id` (e.g. DF_cluster_1 appears
+      # twice when the same DF core binds with two different UR overhangs
+      # across construct groups). Renumber so each unique oligo gets its
+      # own <role>_cluster_<N> identifier.
+      arm_subgroup <- base::character(base::nrow(arm_full))
+      for (rr in base::unique(arm_full$role)) {
+        idx <- base::which(arm_full$role == rr)
+        uniq_seq <- base::unique(arm_full$sequence_to_order_5to3[idx])
+        ord <- base::match(arm_full$sequence_to_order_5to3[idx], uniq_seq)
+        arm_subgroup[idx] <- base::sprintf("%s_cluster_%d", rr, ord)
+      }
+      # Also refresh the per-construct order_name with the NEW cluster
+      # index so it matches the subgroup column.
+      arm_names <- base::vapply(base::seq_len(base::nrow(arm_full)),
+                                  function(i) {
+        members <- base::strsplit(arm_full$genomes_shared[i], ", ")[[1]]
+        ns <- base::as.integer(base::sub(".*_cluster_", "",
+                                            arm_subgroup[i]))
+        role <- arm_full$role[i]
+        fr <- if (role %in% base::c("UF", "DF")) "F" else "R"
+        names_vec <- base::vapply(members, function(gid)
+          base::sprintf("%s_%s_clstr%d_%s", lookup_locus(gid), role, ns, fr),
+          character(1))
+        base::paste(names_vec, collapse = ", ")
+      }, character(1))
       rows$arm <- base::data.frame(
-        order_name   = arm_full$order_name,
-        role         = arm_full$role,
-        used_by      = arm_full$genomes_shared,
-        n_targets    = base::as.integer(arm_full$n_genomes_shared),
+        subgroup      = arm_subgroup,
+        order_name    = arm_names,
+        role          = arm_full$role,
+        used_by       = arm_full$genomes_shared,
+        n_targets     = base::as.integer(arm_full$n_genomes_shared),
         sequence_5to3 = arm_full$sequence_to_order_5to3,
-        length       = base::as.integer(arm_full$full_length),
-        tm           = base::as.numeric(arm_full$tm_full),
-        worst_n0     = base::suppressWarnings(base::as.integer(arm_full$worst_n0)),
+        length        = base::as.integer(arm_full$full_length),
+        tm            = base::as.numeric(arm_full$tm_full),
+        worst_n0      = base::suppressWarnings(base::as.integer(arm_full$worst_n0)),
         stringsAsFactors = FALSE
       )
     }
@@ -574,43 +746,58 @@ design_shared_grna_and_deletion <- function(
       base::nrow(grna_cloning_primers) > 0) {
     grna_used_by <- NA_character_
     grna_n <- NA_integer_
+    members <- base::character(0)
     if (!base::is.null(grna_groups) && base::nrow(grna_groups) > 0 &&
         "used_by" %in% base::colnames(grna_groups)) {
-      # one gRNA cluster shared across all genomes here.
       members <- base::unique(base::unlist(
         base::strsplit(base::as.character(grna_groups$used_by), ",\\s*")))
       grna_used_by <- base::paste(base::sort(members), collapse = ", ")
       grna_n <- base::length(members)
+    }
+    grna_cnum <- if (!base::is.null(grna_groups) && base::nrow(grna_groups) > 0)
+      cluster_num(grna_groups$cluster_id[1]) else 1L
+    grna_name <- function(fr) {
+      if (base::length(members) == 0L) {
+        base::paste0("sgRNA_clstr", grna_cnum, "_", method_abbrev, "_", fr)
+      } else {
+        base::paste(base::vapply(members, function(gid)
+          base::sprintf("sgRNA_%s_clstr%d_%s_%s",
+                         lookup_locus(gid), grna_cnum, method_abbrev, fr),
+          character(1)), collapse = ", ")
+      }
     }
     n0_val <- if ("n0" %in% base::colnames(grna_cloning_primers))
       base::suppressWarnings(base::as.integer(grna_cloning_primers$n0))
     else
       NA_integer_
     rows$grna_f <- base::data.frame(
-      order_name   = grna_cloning_primers$primer_F_name,
-      role         = "gRNA_F",
-      used_by      = grna_used_by,
-      n_targets    = grna_n,
+      subgroup      = grna_cloning_primers$primer_F_name,
+      order_name    = grna_name("F"),
+      role          = "gRNA_F",
+      used_by       = grna_used_by,
+      n_targets     = grna_n,
       sequence_5to3 = grna_cloning_primers$primer_F,
-      length       = base::as.integer(grna_cloning_primers$oligo_F_length),
-      tm           = base::as.numeric(grna_cloning_primers$primer_F_Tm),
-      worst_n0     = n0_val,
+      length        = base::as.integer(grna_cloning_primers$oligo_F_length),
+      tm            = base::as.numeric(grna_cloning_primers$primer_F_Tm),
+      worst_n0      = n0_val,
       stringsAsFactors = FALSE
     )
     rows$grna_r <- base::data.frame(
-      order_name   = grna_cloning_primers$primer_R_name,
-      role         = "gRNA_R",
-      used_by      = grna_used_by,
-      n_targets    = grna_n,
+      subgroup      = grna_cloning_primers$primer_R_name,
+      order_name    = grna_name("R"),
+      role          = "gRNA_R",
+      used_by       = grna_used_by,
+      n_targets     = grna_n,
       sequence_5to3 = grna_cloning_primers$primer_R,
-      length       = base::as.integer(grna_cloning_primers$oligo_R_length),
-      tm           = base::as.numeric(grna_cloning_primers$primer_R_Tm),
-      worst_n0     = n0_val,
+      length        = base::as.integer(grna_cloning_primers$oligo_R_length),
+      tm            = base::as.numeric(grna_cloning_primers$primer_R_Tm),
+      worst_n0      = n0_val,
       stringsAsFactors = FALSE
     )
   }
 
-  # Check primers (cF / cR).
+  # Check primers (cF / cR). order_name lists the native check-primer
+  # naming derived from each covered genome's locus_tag.
   if (!base::is.null(check_primer_cores) &&
       base::nrow(check_primer_cores) > 0) {
     cp <- check_primer_cores
@@ -621,15 +808,26 @@ design_shared_grna_and_deletion <- function(
     cp_n <- base::vapply(
       base::strsplit(base::as.character(cp$used_by), ",\\s*"),
       base::length, integer(1))
+    check_names <- base::vapply(base::seq_len(base::nrow(cp)), function(i) {
+      members <- base::strsplit(base::as.character(cp$used_by[i]), ",\\s*")[[1]]
+      role <- base::as.character(cp$role[i])
+      ns <- cluster_num(cp$cluster_id[i])
+      fr <- if (role == "cF") "F" else "R"
+      names_vec <- base::vapply(members, function(gid)
+        base::sprintf("%s_%s_clstr%d_%s", lookup_locus(gid), role, ns, fr),
+        character(1))
+      base::paste(names_vec, collapse = ", ")
+    }, character(1))
     rows$check <- base::data.frame(
-      order_name   = base::as.character(cp$cluster_id),
-      role         = base::as.character(cp$role),
-      used_by      = cp_used_by,
-      n_targets    = cp_n,
+      subgroup      = base::as.character(cp$cluster_id),
+      order_name    = check_names,
+      role          = base::as.character(cp$role),
+      used_by       = cp_used_by,
+      n_targets     = cp_n,
       sequence_5to3 = base::as.character(cp$primer_core_5to3),
-      length       = base::as.integer(cp$primer_length),
-      tm           = base::as.numeric(cp$tm_core),
-      worst_n0     = base::ifelse(base::isTRUE(base::as.logical(
+      length        = base::as.integer(cp$primer_length),
+      tm            = base::as.numeric(cp$tm_core),
+      worst_n0      = base::ifelse(base::isTRUE(base::as.logical(
                         cp$exact_unique_in_targets)), 1L, NA_integer_),
       stringsAsFactors = FALSE
     )
@@ -637,24 +835,22 @@ design_shared_grna_and_deletion <- function(
 
   if (base::length(rows) == 0) return(base::data.frame())
   out <- dplyr::bind_rows(rows)
-  # Canonical ordering: arm (UF/UR/DF/DR) → gRNA (F/R) → check (cF/cR).
   role_rank <- base::c(UF = 1L, UR = 2L, DF = 3L, DR = 4L,
                         gRNA_F = 5L, gRNA_R = 6L, cF = 7L, cR = 8L)
   out$role_rank <- role_rank[out$role]
   out$role_rank[base::is.na(out$role_rank)] <- 99L
   out <- out[base::order(out$role_rank, -base::as.numeric(out$n_targets),
-                           out$order_name), , drop = FALSE]
+                           out$subgroup), , drop = FALSE]
   out$role_rank <- NULL
-  # Explicit group column: arm / gRNA / check -- borders in the workbook are
-  # drawn automatically around each contiguous block of rows with the same
-  # group value (see .shared_style_group_borders).
   out$group <- base::ifelse(out$role %in% base::c("UF", "UR", "DF", "DR"), "arm",
                    base::ifelse(out$role %in% base::c("gRNA_F", "gRNA_R"), "gRNA",
                                 base::ifelse(out$role %in% base::c("cF", "cR"), "check",
                                              "other")))
-  # Put group first so the separation is visible at a glance.
-  group_cols <- base::c("group")
-  out <- out[, base::c(group_cols, base::setdiff(base::colnames(out), group_cols)),
+  # Canonical column order: group / subgroup / role / order_name / used_by / ...
+  canon <- base::c("group", "subgroup", "role", "order_name", "used_by",
+                    "n_targets", "sequence_5to3", "length", "tm", "worst_n0")
+  canon <- base::intersect(canon, base::colnames(out))
+  out <- out[, base::c(canon, base::setdiff(base::colnames(out), canon)),
              drop = FALSE]
   base::rownames(out) <- NULL
   out
@@ -911,9 +1107,12 @@ design_shared_grna_and_deletion <- function(
   if (base::nrow(df) == 0) return(invisible(NULL))
   if (!cluster_col %in% base::colnames(df)) return(invisible(NULL))
 
+  # Soft pastel palette: light enough to read black text on, distinct
+  # enough that adjacent clusters don't blend, but not vivid — a middle
+  # ground between candy pastels and dull greyscale.
   palette <- c(
-    "#DCEBFA", "#DFF3E4", "#FFF0D9", "#FBE0E0", "#E9E1FB",
-    "#FCECCB", "#E4F7F5", "#F6E6F5", "#E8EEF9", "#FBEFD8"
+    "#E4EEF8", "#E0EEDE", "#F4EBD6", "#F3DEDF", "#E6DFF2",
+    "#F5E5C9", "#D9EDEA", "#EEDCEE", "#DEE4F0", "#F0E1D0"
   )
   groups <- base::unique(df[[cluster_col]])
   idx <- ((base::seq_along(groups) - 1L) %% base::length(palette)) + 1L
@@ -928,11 +1127,13 @@ design_shared_grna_and_deletion <- function(
   }
 }
 
-# Automated thick-border banding around contiguous blocks of rows sharing
-# the same value in `group_col`. Called after per-cluster shading so the
-# borders outline each role category (arm / gRNA / check) without replacing
-# the per-cluster fill.
-.shared_style_group_borders <- function(wb, sheet_name, df, group_col) {
+# Automated border banding around contiguous blocks of rows sharing the
+# same value in `group_col`. Called after per-cluster shading so the
+# borders outline each role category (arm / gRNA / check) without
+# replacing the per-cluster fill. `border_style` is an openxlsx style name
+# — "thin" for outer group borders, "hair" for inner per-role sub-borders.
+.shared_style_group_borders <- function(wb, sheet_name, df, group_col,
+                                          border_style = "thin") {
   if (base::nrow(df) == 0) return(invisible(NULL))
   if (!group_col %in% base::colnames(df)) return(invisible(NULL))
   vals <- base::as.character(df[[group_col]])
@@ -944,24 +1145,24 @@ design_shared_grna_and_deletion <- function(
     is_last <- i == n
     boundary <- is_last || vals[i + 1L] != vals[i]
     if (boundary) {
-      xl_rows <- (run_start + 1L):(i + 1L)   # +1 for the header row offset
-      # Top edge
-      top_style <- openxlsx::createStyle(border = "top", borderStyle = "thin")
+      xl_rows <- (run_start + 1L):(i + 1L)   # +1 for header row offset
+      top_style <- openxlsx::createStyle(border = "top",
+                                          borderStyle = border_style)
       openxlsx::addStyle(wb, sheet = sheet_name, style = top_style,
                          rows = run_start + 1L, cols = base::seq_len(ncols),
                          gridExpand = TRUE, stack = TRUE)
-      # Bottom edge
-      bot_style <- openxlsx::createStyle(border = "bottom", borderStyle = "thin")
+      bot_style <- openxlsx::createStyle(border = "bottom",
+                                          borderStyle = border_style)
       openxlsx::addStyle(wb, sheet = sheet_name, style = bot_style,
                          rows = i + 1L, cols = base::seq_len(ncols),
                          gridExpand = TRUE, stack = TRUE)
-      # Left edge (first column)
-      left_style <- openxlsx::createStyle(border = "left", borderStyle = "thin")
+      left_style <- openxlsx::createStyle(border = "left",
+                                           borderStyle = border_style)
       openxlsx::addStyle(wb, sheet = sheet_name, style = left_style,
                          rows = xl_rows, cols = 1L,
                          gridExpand = TRUE, stack = TRUE)
-      # Right edge (last column)
-      right_style <- openxlsx::createStyle(border = "right", borderStyle = "thin")
+      right_style <- openxlsx::createStyle(border = "right",
+                                            borderStyle = border_style)
       openxlsx::addStyle(wb, sheet = sheet_name, style = right_style,
                          rows = xl_rows, cols = ncols,
                          gridExpand = TRUE, stack = TRUE)

@@ -1,0 +1,6 @@
+^PrimerDesigner\.Rproj$
+^\.Rproj\.user$
+^inst/extdata/results$
+^Rplots\.pdf$
+^\.DS_Store$
+^inst/extdata/.*/\.DS_Store$
