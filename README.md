@@ -392,6 +392,17 @@ Custom nucleases can be added via `crisprBase::CrisprNuclease()`.
 |----------|-------------|
 | `read_vector_file()` | Read `.dna` / `.gb` / `.fasta` vector files |
 | `read_genome_genbank()` | Parse genome `.gbff` → sequence + feature table |
+| `export_constructs_to_dna()` | Batch `.gbk → .dna` via SnapGene CLI (single kill-once flow). Alternative to `write_dna_copies = TRUE` |
+| `write_deletion_genbank()` | Write a SnapGene-compatible `.gbk` for a deletion construct |
+| `write_grna_vector_genbank()` | Write a gRNA vector `.gbk` with annotated protospacer |
+
+### MMseqs2 / Environment Helpers
+
+| Function | Description |
+|----------|-------------|
+| `find_mmseqs_binary(refresh = FALSE)` | Locate and cache the MMseqs2 binary (scans PATH + homebrew + miniforge / miniconda / anaconda). Called automatically on load |
+| `install_mmseqs_via_conda(env_name = NULL)` | One-liner installer: uses the detected `mamba` / `micromamba` / `conda` binary to install `mmseqs2` from bioconda into the base env or a named env, then refreshes the cache |
+| `patch_snapgene_reader(verbose = TRUE)` | Rewrites the installed `snapgene_reader` Python module to (1) fix its "too many values to unpack" crash on multi-valued qualifiers and (2) parse the Primers panel (block 5) that upstream ignores. Called automatically on load |
 | `write_grna_vector_genbank()` | GenBank output: spacer inserted in vector |
 | `write_deletion_genbank()` | GenBank output: deletion construct |
 | `format_primer_name()` | Customizable primer naming pattern |
@@ -465,9 +476,10 @@ Open `.gbk` files in SnapGene to visually inspect spacer, homology arms, and pri
 |----------|----------|
 | **R** | >= 4.0 |
 | **Bioconductor** | crisprVerse, crisprBase, crisprDesign, crisprBowtie, BSgenome, Biostrings, GenomicFeatures, GenomeInfoDb, GenomicRanges, Rsamtools, rtracklayer, Rbowtie |
-| **CRAN** | openxlsx, TmCalculator, glue, dplyr, reticulate, data.table, stringr |
+| **CRAN** | openxlsx, TmCalculator, glue, dplyr, reticulate, data.table, stringr, xmltodict (via reticulate) |
 | **System** | Bowtie (installed via `Rbowtie`) |
-| **Python** | `snapgene_reader` (optional, for `.dna` file support) |
+| **System (optional)** | **MMseqs2** — enables fast sequence-based homolog search in `find_target_across_genomes(..., sequence_fallback = TRUE)`. Without it, the function transparently falls back to a Biostrings CDS-level aligner. Install via `brew install mmseqs2`, `conda install -c bioconda mmseqs2`, or `install_mmseqs_via_conda()` from within R |
+| **Python** | `snapgene_reader` + `biopython<1.82` (for `.dna` file support). `biopython` must be pinned below 1.82 because newer versions drop APIs `snapgene_reader` 0.1.23 depends on |
 
 ---
 
@@ -484,6 +496,48 @@ BSgenome getSeq validation: FAILED -- will rebuild
 ```
 
 This is **expected and harmless**. Non-UCSC genomes (i.e., most non-model organisms) do not have UCSC-style chromosome naming, so the initial seqlengths validation fails. PrimerDesigner automatically detects this and rebuilds the BSgenome package, which then works correctly. You can safely ignore this warning.
+
+**"MMseqs2 not found" on load**
+
+```
+[PrimerDesigner] MMseqs2 not found — sequence-based homolog fallback will use the slower Biostrings engine.
+```
+
+Not an error — `find_target_across_genomes(sequence_fallback = TRUE)` transparently falls back to `Biostrings::pairwiseAlignment` over the annotated CDS table. To enable the 10–100× faster MMseqs2 path, install it via one of:
+
+```r
+install_mmseqs_via_conda()                # auto-detects conda/mamba, installs into base env
+install_mmseqs_via_conda(env_name = "mmseqs")  # install into a dedicated env
+```
+
+```bash
+brew install mmseqs2                      # macOS
+conda install -c bioconda mmseqs2         # cross-platform
+```
+
+PrimerDesigner auto-detects the binary across `PATH`, `/opt/homebrew`, `miniforge3`, `mambaforge`, `miniconda3`, `anaconda3`, and `r-miniconda` — no manual `Sys.setenv(PATH=...)` needed. Status is printed on `library(PrimerDesigner)` load; `find_mmseqs_binary()` returns the cached location.
+
+**"Cannot read SnapGene .dna file" / "too many values to unpack (expected 2)"**
+
+`snapgene_reader` 0.1.23 has two bugs that bite real-world `.dna` files:
+1. It crashes on feature qualifiers that carry more than two `V` items.
+2. It silently drops the Primers panel (block id 5), so every primer tracked in SnapGene's Primers side panel is lost on import.
+
+PrimerDesigner patches the installed module in place on package load via `patch_snapgene_reader()`. If you installed `snapgene_reader` into a different Python env, call it manually after switching envs. The fix is idempotent.
+
+Also pin Biopython: `snapgene_reader` 0.1.23 uses APIs removed in Biopython 1.82+:
+
+```bash
+pip install 'biopython<1.82'
+```
+
+**"bundled dna_editor.py not found in PrimerDesigner package"**
+
+Only happens when calling via `devtools::load_all()` from a tree that hasn't been rebuilt after the editor was added. Either reinstall (`R CMD INSTALL`) or restart the R session; the fallback path resolver (`find.package` + `inst/python/`) in the wrapper usually catches this automatically.
+
+**`~` tilde in output paths produces no `.dna` file**
+
+Fixed in `.shared_write_combined_dna()` as of commit f9f7a02 — R-side `path.expand()` runs before the Python writer opens the file. If you see this on an older install, pull master and reinstall.
 
 ---
 
