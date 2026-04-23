@@ -100,6 +100,7 @@ On subsequent runs, pre-built BSgenome/Bowtie are reused automatically.
 ---
 
 ## Multi-Genome Shared Primer Design
+<img width="713" height="843" alt="스크린샷 2026-04-23 19 12 39" src="https://github.com/user-attachments/assets/9d47088b-fbd7-448c-93de-9403f9ec49ce" />
 
 For knocking out the same gene / ortholog across multiple closely related strains, `shared_primer_design()` picks primers that bind every target genome simultaneously and falls back to per-strain subgroups only where cross-genome sharing is biologically impossible. All outputs land in a single 3-sheet Excel workbook plus an optional single-page summary PDF.
 
