@@ -153,6 +153,86 @@ visualize_shared_design(
 
 The legacy lower-level `design_shared_grna_and_deletion()` is kept exported for back-compat; `shared_primer_design()` is the recommended entry point.
 
+### Gibson deletion library (batch knockout construct generation)
+
+`shared_primer_design()` doubles as a **Gibson deletion library builder**: feed it the same target gene across *N* strains and it returns *N* combined deletion constructs in one pass, sharing every UF / UR / DF / DR primer that is biologically sharable and only diverging into strain-specific sub-clusters where the flanking sequence forces it. For every construct you get:
+
+- A native SnapGene **`.dna`** file written by the bundled in-package binary editor. Every feature color, custom DNA coloring stripe, and Primers-panel entry from the source plasmid round-trips unchanged. The designed UF / UR / DF / DR and gRNA-cloning primers are appended to the Primers panel under their canonical order names (`<locus_tag>_UF_clstr<N>_F`, `sgRNA_<locus_tag>_clstr<N>_<inv|OA>_<F|R>`), so they appear natively alongside the vector's existing primers rather than as generic GenBank features.
+- A parallel **`.gbk`** used for the PDF summary and downstream tooling that speaks GenBank.
+
+Enable this with `write_dna_copies = TRUE` (it runs in addition to the GenBank writer):
+
+```r
+res <- shared_primer_design(
+  target_table                  = targets[, c("genome_id","genbank_file","locus_tag")],
+  nuclease                      = "GeoCas9",
+  overlap_policy                = "strict",
+  upstream_bp                   = 500,  downstream_bp = 500,
+  min_arm_bp                    = 150L, max_arm_bp    = 3000L,
+  grna_vector_file              = plasmid,  grna_start = 7823, grna_end = 7850,
+  grna_cloning_method           = "gibson",   # Gibson sgRNA clone (inv); use "golden_gate" for OA
+  combined_vector_file          = plasmid,
+  combined_grna_start           = 7823, combined_grna_end      = 7850,
+  combined_deletion_start       = 3977, combined_deletion_end  = 4986,
+  combined_construct_output_dir = "out/constructs",  # emits <label>_combined_construct.{gbk,dna}
+  output_file                   = "out/design.xlsx",
+  write_dna_copies              = TRUE
+)
+```
+
+#### Sequence-based homolog fallback (for strains where annotation misses the target)
+
+`find_target_across_genomes(..., sequence_fallback = TRUE)` (default on) first scans annotation fields, then for every genome that returned nothing it runs an AA-level **MMseqs2** translated search against the genome nucleotide sequence, maps the hit back to the closest annotated CDS, and appends a row tagged `match_field = "sequence_homolog"`. Reference strains whose ortholog is annotated only as "hypothetical protein" are therefore caught automatically. If MMseqs2 is not installed the fallback transparently switches to a Biostrings CDS-level local alignment (slower but dependency-free).
+
+MMseqs2 install (recommended):
+
+```bash
+# Homebrew (macOS)
+brew install mmseqs2
+# or Bioconda (cross-platform)
+conda install -c bioconda mmseqs2
+```
+
+The package auto-detects the binary across the common homebrew / miniforge / miniconda / anaconda install paths on load, so no manual PATH manipulation is needed. Status is reported on `library(PrimerDesigner)` startup; `find_mmseqs_binary()` returns the cached location at any time.
+
+### Run it from the terminal
+
+Single command that uses the test genomes shipped with the package (`inst/extdata/*.dna`) and writes a complete Gibson deletion library + Excel + PDF to `~/Desktop/jetD_out/`:
+
+```bash
+Rscript -e 'library(PrimerDesigner)
+extdata <- system.file("extdata", package = "PrimerDesigner")
+plasmid <- file.path(extdata, "plasmid/pG1Kt-GeoCas9EF-OA-HDVrbz-sfGFP-ACrec.dna")
+out_dir <- "~/Desktop/jetD_out"; construct_dir <- file.path(out_dir, "constructs")
+dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+targets <- find_target_across_genomes(
+  genbank_dirs = extdata, query = "TIGR02679", query_type = "product",
+  interactive = FALSE, one_per_genome = FALSE, sequence_fallback = TRUE)
+
+res <- shared_primer_design(
+  target_table     = targets[, c("genome_id","genbank_file","locus_tag")],
+  nuclease         = "GeoCas9", overlap_policy = "strict",
+  upstream_bp      = 500, downstream_bp = 500,
+  min_arm_bp       = 150L, max_arm_bp    = 3000L,
+  primer_min_length = 20L, primer_max_length = 35L,
+  grna_vector_file  = plasmid, grna_start = 7823, grna_end = 7850,
+  grna_cloning_method = "gibson",
+  combined_vector_file          = plasmid,
+  combined_grna_start           = 7823, combined_grna_end      = 7850,
+  combined_deletion_start       = 3977, combined_deletion_end  = 4986,
+  combined_construct_output_dir = construct_dir,
+  output_file                   = file.path(out_dir, "design.xlsx"),
+  write_dna_copies              = TRUE)
+
+visualize_shared_design(
+  result           = res, genbank_dir = extdata,
+  construct_gbk_dir = construct_dir,
+  output_file      = file.path(out_dir, "summary.pdf"))'
+```
+
+The same block runs under `source()` from an R session or from `Rscript my_design.R` if you save it as a file. Replace `"TIGR02679"` / `"gibson"` / coordinate values with your own target / cloning method / vector coordinates.
+
 ---
 
 ## Pipeline Overview
